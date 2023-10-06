@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 )
 
 type sineGenerator struct {
@@ -19,7 +19,7 @@ func SineTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface sine tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("gopxl sine tone generator: samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &sineGenerator{dt, 0}, nil

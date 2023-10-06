@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 	"github.com/pkg/errors"
 )
 

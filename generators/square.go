@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 )
 
 type squareGenerator struct {
@@ -19,7 +19,7 @@ func SquareTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface square tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("gopxl square tone generator: samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &squareGenerator{dt, 0}, nil

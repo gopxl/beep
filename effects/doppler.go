@@ -1,6 +1,6 @@
 package effects
 
-import "github.com/faiface/beep"
+import "github.com/gopxl/beep"
 
 // Doppler simulates a "sound at a distance". If the sound starts at a far distance,
 // it'll take some time to reach the ears of the listener.
@@ -11,11 +11,11 @@ import "github.com/faiface/beep"
 //
 // The arguments are:
 //
-//   quality:         the quality of the underlying resampler (1 or 2 is usually okay)
-//   samplesPerMeter: sample rate / speed of sound
-//   s:               the source streamer
-//   distance:        a function to calculate the current distance; takes number of
-//                    samples Doppler wants to stream at the moment
+//	quality:         the quality of the underlying resampler (1 or 2 is usually okay)
+//	samplesPerMeter: sample rate / speed of sound
+//	s:               the source streamer
+//	distance:        a function to calculate the current distance; takes number of
+//	                 samples Doppler wants to stream at the moment
 //
 // This function is experimental and may change any time!
 func Doppler(quality int, samplesPerMeter float64, s beep.Streamer, distance func(delta int) float64) beep.Streamer {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 )
 
 // randomDataStreamer generates random samples of duration d and returns a StreamSeeker which streams

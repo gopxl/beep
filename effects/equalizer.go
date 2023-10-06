@@ -3,7 +3,7 @@ package effects
 import (
 	"math"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 )
 
 type (
