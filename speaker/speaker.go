@@ -2,8 +2,8 @@
 package speaker
 
 import (
+	"github.com/ebitengine/oto/v3"
 	"github.com/gopxl/beep"
-	"github.com/hajimehoshi/oto/v2"
 	"github.com/pkg/errors"
 	"io"
 	"sync"
@@ -12,12 +12,13 @@ import (
 const channelCount = 2
 const bitDepthInBytes = 2
 const bytesPerSample = bitDepthInBytes * channelCount
+const otoFormat = oto.FormatSignedInt16LE
 
 var (
 	mu      sync.Mutex
 	mixer   beep.Mixer
 	context *oto.Context
-	player  oto.Player
+	player  *oto.Player
 )
 
 // Init initializes audio playback through speaker. Must be called before using this package.
@@ -34,14 +35,18 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 
 	var err error
 	var readyChan chan struct{}
-	context, readyChan, err = oto.NewContext(int(sampleRate), channelCount, bitDepthInBytes)
+	context, readyChan, err := oto.NewContext(&oto.NewContextOptions{
+		SampleRate:   int(sampleRate),
+		ChannelCount: channelCount,
+		Format:       otoFormat,
+		BufferSize:   sampleRate.D(bufferSize),
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize speaker")
 	}
 	<-readyChan
 
 	player = context.NewPlayer(newReaderFromStreamer(&mixer))
-	player.(oto.BufferSizeSetter).SetBufferSize(bufferSize * bytesPerSample)
 	player.Play()
 
 	return nil
