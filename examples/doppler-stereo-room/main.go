@@ -7,11 +7,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/faiface/beep"
-	"github.com/faiface/beep/effects"
-	"github.com/faiface/beep/mp3"
-	"github.com/faiface/beep/speaker"
 	"github.com/gdamore/tcell"
+	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/effects"
+	"github.com/gopxl/beep/mp3"
+	"github.com/gopxl/beep/speaker"
 )
 
 func multiplyChannels(left, right float64, s beep.Streamer) beep.Streamer {
@@ -128,16 +128,16 @@ var directions = map[rune]EventMappedLocation{
 	'2': {-1, 1, 1, 1, SetPoint},
 	// Left, Right
 	'4': {-1.5, 0, -1, 0, SetPoint},
-	'6': { 1,0,  1.5,0, SetPoint},
+	'6': {1, 0, 1.5, 0, SetPoint},
 	// Layout Top Left, Top Right, Bottom Right, Bottom Left
-	'7': {-1.8, -1.8,-0.8, -1.8, SetPoint},
-	'9': {0.8, -1.8,1.8, -1.8,  SetPoint},
+	'7': {-1.8, -1.8, -0.8, -1.8, SetPoint},
+	'9': {0.8, -1.8, 1.8, -1.8, SetPoint},
 	'1': {-1.8, 1.8, -0.8, 1.8, SetPoint},
 	'3': {0.8, 1.8, 1.8, 1.8, SetPoint},
 
 	// Diagonal Locations
 	'\\': {-1, -1, 1, 1, SetPoint},
-	'/': {-1, 1, 1, -1, SetPoint},
+	'/':  {-1, 1, 1, -1, SetPoint},
 
 	// Left
 	'a': {-1, 0, 0, 0, Applied},

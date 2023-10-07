@@ -1,6 +1,6 @@
 package effects
 
-import "github.com/faiface/beep"
+import "github.com/gopxl/beep"
 
 // Swap swaps the left and right channel of the wrapped Streamer.
 //
