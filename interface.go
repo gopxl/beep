@@ -86,13 +86,13 @@ type StreamSeekCloser interface {
 //
 // Example:
 //
-//   noise := StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
-//       for i := range samples {
-//           samples[i][0] = rand.Float64()*2 - 1
-//           samples[i][1] = rand.Float64()*2 - 1
-//       }
-//       return len(samples), true
-//   })
+//	noise := StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
+//	    for i := range samples {
+//	        samples[i][0] = rand.Float64()*2 - 1
+//	        samples[i][1] = rand.Float64()*2 - 1
+//	    }
+//	    return len(samples), true
+//	})
 type StreamerFunc func(samples [][2]float64) (n int, ok bool)
 
 // Stream calls the wrapped streaming function.
