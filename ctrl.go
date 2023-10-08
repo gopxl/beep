@@ -4,25 +4,25 @@ package beep
 //
 // Wrap a Streamer in a Ctrl.
 //
-//   ctrl := &beep.Ctrl{Streamer: s}
+//	ctrl := &beep.Ctrl{Streamer: s}
 //
 // Then, we can pause the streaming (this will cause Ctrl to stream silence).
 //
-//   ctrl.Paused = true
+//	ctrl.Paused = true
 //
 // To completely stop a Ctrl before the wrapped Streamer is drained, just set the wrapped Streamer
 // to nil.
 //
-//   ctrl.Streamer = nil
+//	ctrl.Streamer = nil
 //
 // If you're playing a Streamer wrapped in a Ctrl through the speaker, you need to lock and unlock
 // the speaker when modifying the Ctrl to avoid race conditions.
 //
-//   speaker.Play(ctrl)
-//   // ...
-//   speaker.Lock()
-//   ctrl.Paused = true
-//   speaker.Unlock()
+//	speaker.Play(ctrl)
+//	// ...
+//	speaker.Lock()
+//	ctrl.Paused = true
+//	speaker.Unlock()
 type Ctrl struct {
 	Streamer Streamer
 	Paused   bool
