@@ -1,7 +1,7 @@
 package wav
 
 import (
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 	"github.com/orcaman/writerseeker"
 	"github.com/stretchr/testify/assert"
 	"testing"

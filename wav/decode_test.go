@@ -2,7 +2,7 @@ package wav
 
 import (
 	"bytes"
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

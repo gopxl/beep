@@ -1,6 +1,6 @@
 package effects
 
-import "github.com/faiface/beep"
+import "github.com/gopxl/beep"
 
 // Gain amplifies the wrapped Streamer. The output of the wrapped Streamer gets multiplied by
 // 1+Gain.

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 )
 
 type sawGenerator struct {
@@ -21,7 +21,7 @@ func SawtoothTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface sawtooth tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("gopxl sawtooth tone generator: samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &sawGenerator{dt, 0, false}, nil
@@ -35,7 +35,7 @@ func SawtoothToneReversed(sr beep.SampleRate, freq float64) (beep.Streamer, erro
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface triangle tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("gopxl triangle tone generator: samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &sawGenerator{dt, 0, true}, nil

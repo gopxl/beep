@@ -4,7 +4,7 @@ package vorbis
 import (
 	"io"
 
-	"github.com/faiface/beep"
+	"github.com/gopxl/beep"
 	"github.com/jfreymuth/oggvorbis"
 	"github.com/pkg/errors"
 )
