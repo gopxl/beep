@@ -67,15 +67,18 @@ func TestDecode(t *testing.T) {
 	n, ok := s.Stream(samples)
 	assert.Equal(t, 3, n)
 	assert.Truef(t, ok, "the decoder failed to stream the samples")
+	assert.Equal(t, 3, s.Position())
 	assert.NoError(t, s.Err())
 	// Drain the streamer
 	n, ok = s.Stream(samples)
 	assert.Equal(t, 2, n)
 	assert.Truef(t, ok, "the decoder failed to stream the samples")
+	assert.Equal(t, 5, s.Position())
 	assert.NoError(t, s.Err())
 	// Drain the streamer some more
 	n, ok = s.Stream(samples)
 	assert.Equal(t, 0, n)
+	assert.Equal(t, 5, s.Position())
 	assert.Falsef(t, ok, "expected the decoder to return false after it was fully drained")
 	assert.NoError(t, s.Err())
 
