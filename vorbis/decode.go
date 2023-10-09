@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	govorbisNumChannels = 2
-	govorbisPrecision   = 2
+	govorbisPrecision = 2
 )
 
 // Decode takes a ReadCloser containing audio data in ogg/vorbis format and returns a StreamSeekCloser,
@@ -31,7 +30,7 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 	}
 	format = beep.Format{
 		SampleRate:  beep.SampleRate(d.SampleRate()),
-		NumChannels: govorbisNumChannels,
+		NumChannels: d.Channels(),
 		Precision:   govorbisPrecision,
 	}
 	return &decoder{rc, d, format, nil}, format, nil
@@ -50,11 +49,22 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	}
 	var tmp [2]float32
 	for i := range samples {
-		dn, err := d.d.Read(tmp[:])
-		if dn == 2 {
-			samples[i][0], samples[i][1] = float64(tmp[0]), float64(tmp[1])
-			n++
-			ok = true
+		var err error
+		var dn int
+		if d.d.Channels() == 1 {
+			dn, err = d.d.Read(tmp[:1])
+			if dn == 1 {
+				samples[i][0], samples[i][1] = float64(tmp[0]), float64(tmp[0])
+				n++
+				ok = true
+			}
+		} else {
+			dn, err = d.d.Read(tmp[:])
+			if dn == 2 {
+				samples[i][0], samples[i][1] = float64(tmp[0]), float64(tmp[1])
+				n++
+				ok = true
+			}
 		}
 		if err == io.EOF {
 			break
