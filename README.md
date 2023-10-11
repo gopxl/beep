@@ -39,10 +39,14 @@ For playback, Beep uses [Oto](https://github.com/hajimehoshi/oto) under the hood
 
 Running an already built application should work with no extra dependencies.
 
-## Licence
+## License
 
 [MIT](https://github.com/gopxl/beep/blob/master/LICENSE)
 
-## Projects using beep
+## Related projects
+
+- [Microphone support for Beep (a wrapper around PortAudio)](https://github.com/MarkKremer/microphone)
+
+## Projects using Beep
 
 - [Mifasol music server](https://github.com/jypelle/mifasol)
