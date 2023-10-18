@@ -1,6 +1,9 @@
 package beep
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // Resample takes a Streamer which is assumed to stream at the old sample rate and returns a
 // Streamer, which streams the data from the original Streamer resampled to the new sample rate.
@@ -43,6 +46,9 @@ func Resample(quality int, old, new SampleRate, s Streamer) *Resampler {
 func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 	if quality < 1 || 64 < quality {
 		panic(fmt.Errorf("resample: invalid quality: %d", quality))
+	}
+	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+		panic(fmt.Errorf("resample: invalid ratio: %d", ratio))
 	}
 	return &Resampler{
 		s:     s,
@@ -148,6 +154,9 @@ func (r *Resampler) Ratio() float64 {
 
 // SetRatio sets the resampling ratio. This does not cause any glitches in the stream.
 func (r *Resampler) SetRatio(ratio float64) {
+	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+		panic(fmt.Errorf("resample: invalid ratio: %d", ratio))
+	}
 	r.pos = int(float64(r.pos) * r.ratio / ratio)
 	r.ratio = ratio
 }
