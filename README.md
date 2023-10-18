@@ -29,9 +29,9 @@ The [Wiki](https://github.com/gopxl/beep/wiki) contains a handful of tutorials f
 
 ## Examples
 
-| [Speedy Player](https://github.com/gopxl/beep/tree/master/examples/speedy-player) | [Doppler Stereo Room](https://github.com/gopxl/beep/tree/master/examples/doppler-stereo-room) |
-| --- | --- |
-| ![Speedy Player](https://github.com/gopxl/beep/blob/master/examples/speedy-player/screenshot.png) | ![Doppler Stereo Room](https://github.com/gopxl/beep/blob/master/examples/doppler-stereo-room/screenshot.png) |
+| [Speedy Player](https://github.com/gopxl/beep/tree/main/examples/speedy-player)                 | [Doppler Stereo Room](https://github.com/gopxl/beep/tree/main/examples/doppler-stereo-room)                 |
+|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| ![Speedy Player](https://github.com/gopxl/beep/blob/main/examples/speedy-player/screenshot.png) | ![Doppler Stereo Room](https://github.com/gopxl/beep/blob/main/examples/doppler-stereo-room/screenshot.png) |
 
 ## Dependencies
 
@@ -41,7 +41,7 @@ Running an already built application should work with no extra dependencies.
 
 ## License
 
-[MIT](https://github.com/gopxl/beep/blob/master/LICENSE)
+[MIT](https://github.com/gopxl/beep/blob/main/LICENSE)
 
 ## Related projects
 
