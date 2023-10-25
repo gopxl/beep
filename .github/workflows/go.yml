@@ -21,6 +21,10 @@ jobs:
         with:
           go-version: '1.21'
 
+      # Install ALSA for building Oto
+      - name: Install ALSA
+        run: sudo apt install libasound2-dev
+
       - name: Build
         run: go build -v ./...
 
