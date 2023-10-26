@@ -36,6 +36,7 @@ jobs:
         run: go test -v -covermode atomic -coverprofile=covprofile ./...
 
       - name: Gofmt
+        # Run gofmt, print the output and exit with status code 1 if it isn't empty.
         run: |
           OUTPUT=$(gofmt -d ./)
           echo "$OUTPUT"
