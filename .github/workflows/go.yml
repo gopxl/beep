@@ -22,7 +22,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install goveralls
-        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: go install github.com/mattn/goveralls@latest
 
       # Install ALSA for building Oto
@@ -39,7 +39,7 @@ jobs:
         run: gofmt -d ./
 
       - name: Send coverage
-        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         run: goveralls -coverprofile=covprofile -service=github
