@@ -21,6 +21,10 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install goveralls
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: go install github.com/mattn/goveralls@latest
+
       # Install ALSA for building Oto
       - name: Install ALSA
         run: sudo apt install libasound2-dev
@@ -29,7 +33,13 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v -covermode atomic -coverprofile=covprofile ./...
 
       - name: Gofmt
         run: gofmt -d ./
+
+      - name: Send coverage
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        run: goveralls -coverprofile=covprofile -service=github
