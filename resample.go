@@ -48,7 +48,7 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 		panic(fmt.Errorf("resample: invalid quality: %d", quality))
 	}
 	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
-		panic(fmt.Errorf("resample: invalid ratio: %d", ratio))
+		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
 	return &Resampler{
 		s:     s,
@@ -155,7 +155,7 @@ func (r *Resampler) Ratio() float64 {
 // SetRatio sets the resampling ratio. This does not cause any glitches in the stream.
 func (r *Resampler) SetRatio(ratio float64) {
 	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
-		panic(fmt.Errorf("resample: invalid ratio: %d", ratio))
+		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
 	r.pos = int(float64(r.pos) * r.ratio / ratio)
 	r.ratio = ratio
