@@ -14,11 +14,11 @@ type Streamer interface {
 	// samples will be produced, it returns 0 and false. Stream must not touch any samples
 	// outside samples[:n].
 	//
-	// There are 3 valid return pattterns of the Stream method:
+	// There are 3 valid return patterns of the Stream method:
 	//
 	//   1. n == len(samples) && ok
 	//
-	// Stream streamed all of the requested samples. Cases 1, 2 and 3 may occur in the following
+	// Stream streamed all the requested samples. Cases 1, 2 and 3 may occur in the following
 	// calls.
 	//
 	//   2. 0 < n && n < len(samples) && ok
