@@ -67,7 +67,7 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 					return n, n > 0
 				}
 				d.err = err
-				return n, n > 0
+				return 0, false
 			}
 			j = 0
 		}
