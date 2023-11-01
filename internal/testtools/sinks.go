@@ -16,3 +16,8 @@ func Collect(s beep.Streamer) [][2]float64 {
 		result = append(result, buf[:n]...)
 	}
 }
+
+// CollectNum collects num samples from the streamer in chunks and returns them all.
+func CollectNum(num int, s beep.Streamer) [][2]float64 {
+	return Collect(beep.Take(num, s))
+}
