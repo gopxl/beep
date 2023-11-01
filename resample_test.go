@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/internal/testtools"
 )
 
 func TestResample(t *testing.T) {
@@ -15,11 +16,11 @@ func TestResample(t *testing.T) {
 					continue // skip too expensive combinations
 				}
 
-				s, data := randomDataStreamer(numSamples)
+				s, data := testtools.RandomDataStreamer(numSamples)
 
 				want := resampleCorrect(3, old, new, data)
 
-				got := collect(beep.Resample(3, old, new, s))
+				got := testtools.Collect(beep.Resample(3, old, new, s))
 
 				if !reflect.DeepEqual(want, got) {
 					t.Fatal("Resample not working correctly")

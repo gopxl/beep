@@ -1,6 +1,7 @@
 package beep_test
 
 import (
+	"github.com/gopxl/beep/internal/testtools"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -8,71 +9,14 @@ import (
 	"github.com/gopxl/beep"
 )
 
-// randomDataStreamer generates random samples of duration d and returns a StreamSeeker which streams
-// them and the data itself.
-func randomDataStreamer(numSamples int) (s beep.StreamSeeker, data [][2]float64) {
-	data = make([][2]float64, numSamples)
-	for i := range data {
-		data[i][0] = rand.Float64()*2 - 1
-		data[i][1] = rand.Float64()*2 - 1
-	}
-	return &dataStreamer{data, 0}, data
-}
-
-type dataStreamer struct {
-	data [][2]float64
-	pos  int
-}
-
-func (ds *dataStreamer) Stream(samples [][2]float64) (n int, ok bool) {
-	if ds.pos >= len(ds.data) {
-		return 0, false
-	}
-	n = copy(samples, ds.data[ds.pos:])
-	ds.pos += n
-	return n, true
-}
-
-func (ds *dataStreamer) Err() error {
-	return nil
-}
-
-func (ds *dataStreamer) Len() int {
-	return len(ds.data)
-}
-
-func (ds *dataStreamer) Position() int {
-	return ds.pos
-}
-
-func (ds *dataStreamer) Seek(p int) error {
-	ds.pos = p
-	return nil
-}
-
-// collect drains Streamer s and returns all of the samples it streamed.
-func collect(s beep.Streamer) [][2]float64 {
-	var (
-		result [][2]float64
-		buf    [479][2]float64
-	)
-	for {
-		n, ok := s.Stream(buf[:])
-		if !ok {
-			return result
-		}
-		result = append(result, buf[:n]...)
-	}
-}
-
 func TestTake(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		total := rand.Intn(1e5) + 1e4
-		s, data := randomDataStreamer(total)
+		s, data := testtools.RandomDataStreamer(total)
 		take := rand.Intn(total)
 
 		want := data[:take]
-		got := collect(beep.Take(take, s))
+		got := testtools.Collect(beep.Take(take, s))
 
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Take not working correctly")
@@ -83,13 +27,13 @@ func TestTake(t *testing.T) {
 func TestLoop(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		for n := 0; n < 5; n++ {
-			s, data := randomDataStreamer(10)
+			s, data := testtools.RandomDataStreamer(10)
 
 			var want [][2]float64
 			for j := 0; j < n; j++ {
 				want = append(want, data...)
 			}
-			got := collect(beep.Loop(n, s))
+			got := testtools.Collect(beep.Loop(n, s))
 
 			if !reflect.DeepEqual(want, got) {
 				t.Error("Loop not working correctly")
@@ -105,7 +49,7 @@ func TestSeq(t *testing.T) {
 		data = make([][][2]float64, n)
 	)
 	for i := range s {
-		s[i], data[i] = randomDataStreamer(rand.Intn(1e5) + 1e4)
+		s[i], data[i] = testtools.RandomDataStreamer(rand.Intn(1e5) + 1e4)
 	}
 
 	var want [][2]float64
@@ -113,7 +57,7 @@ func TestSeq(t *testing.T) {
 		want = append(want, d...)
 	}
 
-	got := collect(beep.Seq(s...))
+	got := testtools.Collect(beep.Seq(s...))
 
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Seq not working properly")
@@ -127,7 +71,7 @@ func TestMix(t *testing.T) {
 		data = make([][][2]float64, n)
 	)
 	for i := range s {
-		s[i], data[i] = randomDataStreamer(rand.Intn(1e5) + 1e4)
+		s[i], data[i] = testtools.RandomDataStreamer(rand.Intn(1e5) + 1e4)
 	}
 
 	maxLen := 0
@@ -145,7 +89,7 @@ func TestMix(t *testing.T) {
 		}
 	}
 
-	got := collect(beep.Mix(s...))
+	got := testtools.Collect(beep.Mix(s...))
 
 	if !reflect.DeepEqual(want, got) {
 		t.Error("Mix not working correctly")
@@ -154,7 +98,7 @@ func TestMix(t *testing.T) {
 
 func TestDup(t *testing.T) {
 	for i := 0; i < 7; i++ {
-		s, data := randomDataStreamer(rand.Intn(1e5) + 1e4)
+		s, data := testtools.RandomDataStreamer(rand.Intn(1e5) + 1e4)
 		st, su := beep.Dup(s)
 
 		var tData, uData [][2]float64
