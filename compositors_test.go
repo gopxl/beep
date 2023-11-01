@@ -1,12 +1,12 @@
 package beep_test
 
 import (
-	"github.com/gopxl/beep/internal/testtools"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/internal/testtools"
 )
 
 func TestTake(t *testing.T) {

@@ -1,11 +1,13 @@
 package flac_test
 
 import (
-	"github.com/gopxl/beep/flac"
-	"github.com/gopxl/beep/internal/testtools"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/gopxl/beep/flac"
+	"github.com/gopxl/beep/internal/testtools"
 )
 
 func TestDecoder_Stream(t *testing.T) {
