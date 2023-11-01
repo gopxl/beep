@@ -29,9 +29,11 @@ func TestDecoder_Stream(t *testing.T) {
 	n, ok := streamer.Stream(buf[:])
 	assert.True(t, ok)
 	assert.Equal(t, 50, n)
+	assert.NoError(t, streamer.Err())
 
 	// Case 3: return !ok with n == 0
 	n, ok = streamer.Stream(buf[:])
 	assert.False(t, ok)
 	assert.Equal(t, 0, n)
+	assert.NoError(t, streamer.Err())
 }
