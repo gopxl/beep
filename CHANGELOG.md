@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for single channel ogg/vorbis ([#10](https://github.com/gopxl/beep/pull/10))
 
 ### Fixed
-- Fix FileSize for saving .wav ([#6](https://github.com/gopxl/beep/pull/6))
+- Fix `FileSize` for saving .wav ([#6](https://github.com/gopxl/beep/pull/6))
+- Fix `flac.Decode` handling of `io.EOF` ([#127](https://github.com/gopxl/beep/pull/127))
 
 ### Changed
 - Upgrade Go version to 1.21 ([#2](https://github.com/gopxl/beep/pull/2))

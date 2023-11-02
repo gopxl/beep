@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gopxl/beep"
 	"github.com/mewkiz/flac"
 	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep"
 )
 
 // Decode takes a Reader containing audio data in FLAC format and returns a StreamSeekCloser,
@@ -62,9 +63,12 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		if j >= len(d.buf) {
 			// refill buffer.
 			if err := d.refill(); err != nil {
-				d.err = err
 				d.pos += n
-				return n, n > 0
+				if err == io.EOF {
+					return n, n > 0
+				}
+				d.err = err
+				return 0, false
 			}
 			j = 0
 		}
