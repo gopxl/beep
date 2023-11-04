@@ -46,3 +46,15 @@ func (ds *dataStreamer) Seek(p int) error {
 	ds.pos = p
 	return nil
 }
+
+type ErrorStreamer struct {
+	Error error
+}
+
+func (e ErrorStreamer) Stream(samples [][2]float64) (n int, ok bool) {
+	return 0, false
+}
+
+func (e ErrorStreamer) Err() error {
+	return e.Error
+}
