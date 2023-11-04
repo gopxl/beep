@@ -80,11 +80,7 @@ func TestMixer_PlaysSilenceWhenNoStreamersProduceSamples(t *testing.T) {
 	// Test silence before streamers are added.
 	samples := testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
-	for _, s := range samples {
-		if s[0] != 0 || s[1] != 0 {
-			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
-		}
-	}
+	assert.Equal(t, make([][2]float64, 10), samples)
 
 	// Test silence after streamer is partly drained.
 	s, _ := testtools.RandomDataStreamer(50)
@@ -93,30 +89,18 @@ func TestMixer_PlaysSilenceWhenNoStreamersProduceSamples(t *testing.T) {
 	samples = testtools.CollectNum(100, &m)
 	assert.Len(t, samples, 100)
 	assert.Equal(t, 1, m.Len())
-	for _, s := range samples[50:] {
-		if s[0] != 0 || s[1] != 0 {
-			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
-		}
-	}
+	assert.Equal(t, make([][2]float64, 50), samples[50:])
 
 	// Test silence when streamer is fully drained.
 	samples = testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
 	assert.Equal(t, 0, m.Len())
-	for _, s := range samples {
-		if s[0] != 0 || s[1] != 0 {
-			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
-		}
-	}
+	assert.Equal(t, make([][2]float64, 10), samples)
 
 	// Test silence after streamer was fully drained.
 	samples = testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
-	for _, s := range samples {
-		if s[0] != 0 || s[1] != 0 {
-			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
-		}
-	}
+	assert.Equal(t, make([][2]float64, 10), samples)
 }
 
 func BenchmarkMixer_MultipleStreams(b *testing.B) {
