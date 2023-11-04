@@ -3,11 +3,13 @@ package beep_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/internal/testtools"
 )
 
-func TestMixer(t *testing.T) {
+func TestMixer_MixesSamples(t *testing.T) {
 	epsilon := 0.000001
 
 	s1, data1 := testtools.RandomDataStreamer(200)
@@ -43,6 +45,24 @@ func TestMixer(t *testing.T) {
 		}
 		if s[1] < wantR-epsilon || s[1] > wantR+epsilon {
 			t.Fatalf("unexpected value for mixed samples; expected: %f, got: %f", wantR, s[1])
+		}
+	}
+}
+
+func TestMixer_KeepsPlayingSilenceAfterStreamsHaveFinished(t *testing.T) {
+	s1, _ := testtools.RandomDataStreamer(50)
+	s2, _ := testtools.RandomDataStreamer(60)
+
+	m := beep.Mixer{}
+	m.Add(s1)
+	m.Add(s2)
+
+	samples := testtools.CollectNum(100, &m)
+	assert.Len(t, samples, 100)
+
+	for _, s := range samples[60:] {
+		if s[0] != 0 || s[1] != 0 {
+			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
 		}
 	}
 }
