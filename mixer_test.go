@@ -49,7 +49,7 @@ func TestMixer_MixesSamples(t *testing.T) {
 	}
 }
 
-func TestMixer_KeepsPlayingSilenceAfterStreamsHaveFinished(t *testing.T) {
+func TestMixer_DrainedStreamersAreRemoved(t *testing.T) {
 	s1, _ := testtools.RandomDataStreamer(50)
 	s2, _ := testtools.RandomDataStreamer(60)
 
@@ -57,17 +57,69 @@ func TestMixer_KeepsPlayingSilenceAfterStreamsHaveFinished(t *testing.T) {
 	m.Add(s1)
 	m.Add(s2)
 
-	samples := testtools.CollectNum(100, &m)
-	assert.Len(t, samples, 100)
+	// Drain s1 but not so far it returns false.
+	samples := testtools.CollectNum(50, &m)
+	assert.Len(t, samples, 50)
+	assert.Equal(t, 2, m.Len())
 
-	for _, s := range samples[60:] {
+	// Fully drain s1.
+	// Drain s2 but not so far it returns false.
+	samples = testtools.CollectNum(10, &m)
+	assert.Len(t, samples, 10)
+	assert.Equal(t, 1, m.Len())
+
+	// Fully drain s2.
+	samples = testtools.CollectNum(10, &m)
+	assert.Len(t, samples, 10)
+	assert.Equal(t, 0, m.Len())
+}
+
+func TestMixer_PlaysSilenceWhenNoStreamersProduceSamples(t *testing.T) {
+	m := beep.Mixer{}
+
+	// Test silence before streamers are added.
+	samples := testtools.CollectNum(10, &m)
+	assert.Len(t, samples, 10)
+	for _, s := range samples {
+		if s[0] != 0 || s[1] != 0 {
+			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
+		}
+	}
+
+	// Test silence after streamer is partly drained.
+	s, _ := testtools.RandomDataStreamer(50)
+	m.Add(s)
+
+	samples = testtools.CollectNum(100, &m)
+	assert.Len(t, samples, 100)
+	assert.Equal(t, 1, m.Len())
+	for _, s := range samples[50:] {
+		if s[0] != 0 || s[1] != 0 {
+			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
+		}
+	}
+
+	// Test silence when streamer is fully drained.
+	samples = testtools.CollectNum(10, &m)
+	assert.Len(t, samples, 10)
+	assert.Equal(t, 0, m.Len())
+	for _, s := range samples {
+		if s[0] != 0 || s[1] != 0 {
+			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
+		}
+	}
+
+	// Test silence after streamer was fully drained.
+	samples = testtools.CollectNum(10, &m)
+	assert.Len(t, samples, 10)
+	for _, s := range samples {
 		if s[0] != 0 || s[1] != 0 {
 			t.Fatalf("expected silence after input streams are finished, got (%f, %f)", s[0], s[1])
 		}
 	}
 }
 
-func BenchmarkMixer(b *testing.B) {
+func BenchmarkMixer_MultipleStreams(b *testing.B) {
 	s1, _ := testtools.RandomDataStreamer(b.N)
 	s2, _ := testtools.RandomDataStreamer(b.N)
 
@@ -77,5 +129,23 @@ func BenchmarkMixer(b *testing.B) {
 
 	b.StartTimer()
 
+	testtools.CollectNum(b.N, &m)
+}
+
+func BenchmarkMixer_OneStream(b *testing.B) {
+	s, _ := testtools.RandomDataStreamer(b.N)
+
+	m := beep.Mixer{}
+	m.Add(s)
+
+	b.StartTimer()
+	testtools.CollectNum(b.N, &m)
+}
+
+func BenchmarkMixer_Silence(b *testing.B) {
+	m := beep.Mixer{}
+	// Don't add any streamers
+
+	b.StartTimer()
 	testtools.CollectNum(b.N, &m)
 }
