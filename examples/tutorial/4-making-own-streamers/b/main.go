@@ -70,7 +70,7 @@ func main() {
 		}
 
 		// Decode it.
-		streamer, format, err := mp3.Decode(f)
+		streamer, format, err := mp3.DecodeReader(f)
 		if err != nil {
 			fmt.Println(err)
 			continue

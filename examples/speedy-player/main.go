@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/mp3"
@@ -151,7 +152,7 @@ func main() {
 	if err != nil {
 		report(err)
 	}
-	streamer, format, err := mp3.Decode(f)
+	streamer, format, err := mp3.DecodeReadSeeker(f)
 	if err != nil {
 		report(err)
 	}

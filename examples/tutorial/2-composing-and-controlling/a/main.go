@@ -17,7 +17,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	streamer, format, err := mp3.Decode(f)
+	streamer, format, err := mp3.DecodeReader(f)
 	if err != nil {
 		log.Fatal(err)
 	}
