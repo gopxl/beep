@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/generators"
 )
 
 func TestFormatEncodeDecode(t *testing.T) {
@@ -75,7 +76,7 @@ func TestBufferAppendPop(t *testing.T) {
 
 	for format := range formats {
 		b := beep.NewBuffer(format)
-		b.Append(beep.Silence(768))
+		b.Append(generators.Silence(768))
 		if b.Len() != 768 {
 			t.Fatalf("buffer length isn't equal to appended stream length: expected: %v, actual: %v (NumChannels: %v)", 768, b.Len(), format.NumChannels)
 		}
