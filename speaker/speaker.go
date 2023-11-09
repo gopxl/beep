@@ -39,7 +39,7 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 		SampleRate:   int(sampleRate),
 		ChannelCount: channelCount,
 		Format:       otoFormat,
-		BufferSize:   sampleRate.D(bufferSize),
+		BufferSize:   0, // use the default
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize speaker")
@@ -47,6 +47,7 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 	<-readyChan
 
 	player = context.NewPlayer(newReaderFromStreamer(&mixer))
+	player.SetBufferSize(bufferSize * bytesPerSample)
 	player.Play()
 
 	return nil
