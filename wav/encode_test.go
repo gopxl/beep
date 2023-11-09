@@ -1,10 +1,13 @@
 package wav
 
 import (
+	"testing"
+
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/generators"
+
 	"github.com/orcaman/writerseeker"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestEncode(t *testing.T) {
@@ -14,7 +17,7 @@ func TestEncode(t *testing.T) {
 		Precision:   2,
 	}
 	var w writerseeker.WriterSeeker
-	var s = beep.Silence(5)
+	var s = generators.Silence(5)
 
 	err := Encode(&w, s, f)
 	if err != nil {
