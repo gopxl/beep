@@ -2,11 +2,13 @@
 package speaker
 
 import (
-	"github.com/ebitengine/oto/v3"
-	"github.com/gopxl/beep"
-	"github.com/pkg/errors"
 	"io"
 	"sync"
+
+	"github.com/ebitengine/oto/v3"
+	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep"
 )
 
 const channelCount = 2
@@ -33,13 +35,21 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 
 	mixer = beep.Mixer{}
 
+	// We split the total amount of buffer size between the driver and the player.
+	// This seems to be a decent ratio on my machine, but it may have different
+	// results on other OS's because of different underlying implementations.
+	// Both buffers try to keep themselves filled, so the total buffered
+	// number of samples should be some number less than bufferSize.
+	driverBufferSize := bufferSize / 2
+	playerBufferSize := bufferSize / 2
+
 	var err error
 	var readyChan chan struct{}
 	context, readyChan, err := oto.NewContext(&oto.NewContextOptions{
 		SampleRate:   int(sampleRate),
 		ChannelCount: channelCount,
 		Format:       otoFormat,
-		BufferSize:   0, // use the default
+		BufferSize:   sampleRate.D(driverBufferSize),
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize speaker")
@@ -47,7 +57,7 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 	<-readyChan
 
 	player = context.NewPlayer(newReaderFromStreamer(&mixer))
-	player.SetBufferSize(bufferSize * bytesPerSample)
+	player.SetBufferSize(playerBufferSize * bytesPerSample)
 	player.Play()
 
 	return nil
