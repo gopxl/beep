@@ -2,9 +2,13 @@ package wav
 
 import (
 	"bytes"
-	"github.com/gopxl/beep"
-	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
+
+	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/internal/testtools"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDecode(t *testing.T) {
@@ -102,4 +106,16 @@ func TestDecode(t *testing.T) {
 		DataMark:      [4]byte{'d', 'a', 't', 'a'},
 		DataSize:      20, // 5 samples * 2 bytes/sample precision * 2 channels = 20 bytes
 	}, d.h)
+}
+
+func TestDecoder_ReturnBehaviour(t *testing.T) {
+	f, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.wav"))
+	assert.NoError(t, err)
+	defer f.Close()
+
+	s, _, err := Decode(f)
+	assert.NoError(t, err)
+	assert.Equal(t, 22050, s.Len())
+
+	testtools.AssertStreamerHasCorrectReturnBehaviour(t, s, s.Len())
 }

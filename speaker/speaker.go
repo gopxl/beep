@@ -2,11 +2,13 @@
 package speaker
 
 import (
-	"github.com/ebitengine/oto/v3"
-	"github.com/gopxl/beep"
-	"github.com/pkg/errors"
 	"io"
 	"sync"
+
+	"github.com/ebitengine/oto/v3"
+	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep"
 )
 
 const channelCount = 2
