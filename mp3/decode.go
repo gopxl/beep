@@ -24,17 +24,14 @@ const (
 // StreamSeekCloser when you want to release the resources.
 //
 // Deprecated: Decode has been replaced with DecodeReader and DecodeReadSeeker.
-func Decode(rc io.ReadCloser) (ssc beep.StreamSeekCloser, format beep.Format, err error) {
-	sc, format, err := DecodeReader(rc)
+func Decode(rc io.ReadCloser) (beep.StreamSeekCloser, beep.Format, error) {
+	d, format, err := DecodeReader(rc)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
 
 	// Even though rc may not be an io.Seeker, Decode will return a Seeker for backward compatibility.
-	ssc = &seekWrapper{
-		decoder: *sc.(*decoder),
-	}
-	return
+	return &SeekableDecoder{d: *d}, format, nil
 }
 
 // DecodeReader takes an io.ReadCloser containing audio data in MP3 format and returns a beep.StreamCloser,
@@ -42,25 +39,25 @@ func Decode(rc io.ReadCloser) (ssc beep.StreamSeekCloser, format beep.Format, er
 //
 // Do not close the supplied StreamCloser, instead, use the Close method of the returned
 // StreamSeekCloser when you want to release the resources.
-func DecodeReader(r io.ReadCloser) (sc beep.StreamCloser, format beep.Format, err error) {
-	d, err := gomp3.NewDecoder(r)
+func DecodeReader(r io.ReadCloser) (*Decoder, beep.Format, error) {
+	decoder, err := gomp3.NewDecoder(r)
 	if err != nil {
 		return nil, beep.Format{}, errors.Wrap(err, "mp3")
 	}
 
-	format = beep.Format{
-		SampleRate:  beep.SampleRate(d.SampleRate()),
+	format := beep.Format{
+		SampleRate:  beep.SampleRate(decoder.SampleRate()),
 		NumChannels: gomp3NumChannels,
 		Precision:   gomp3Precision,
 	}
-	sc = &decoder{
+	d := &Decoder{
 		closer: r,
-		d:      d,
+		d:      decoder,
 		f:      format,
 		pos:    0,
 		err:    nil,
 	}
-	return
+	return d, format, nil
 }
 
 // DecodeReadSeeker takes an ReadSeekCloser containing audio data in MP3 format and returns a beep.StreamSeekCloser,
@@ -68,20 +65,16 @@ func DecodeReader(r io.ReadCloser) (sc beep.StreamCloser, format beep.Format, er
 //
 // Do not close the supplied StreamCloser, instead, use the Close method of the returned
 // StreamSeekCloser when you want to release the resources.
-func DecodeReadSeeker(rc io.ReadSeekCloser) (ssc beep.StreamSeekCloser, format beep.Format, err error) {
-	var sc beep.StreamCloser
-	sc, format, err = DecodeReader(rc)
+func DecodeReadSeeker(rc io.ReadSeekCloser) (*SeekableDecoder, beep.Format, error) {
+	d, format, err := DecodeReader(rc)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
 
-	ssc = &seekWrapper{
-		decoder: *sc.(*decoder),
-	}
-	return
+	return &SeekableDecoder{d: *d}, format, nil
 }
 
-type decoder struct {
+type Decoder struct {
 	closer io.Closer
 	d      *gomp3.Decoder
 	f      beep.Format
@@ -89,7 +82,7 @@ type decoder struct {
 	err    error
 }
 
-func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
+func (d *Decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	if d.err != nil {
 		return 0, false
 	}
@@ -113,15 +106,15 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	return n, ok
 }
 
-func (d *decoder) Err() error {
+func (d *Decoder) Err() error {
 	return d.err
 }
 
-func (d *decoder) Position() int {
+func (d *Decoder) Position() int {
 	return d.pos / gomp3BytesPerFrame
 }
 
-func (d *decoder) Close() error {
+func (d *Decoder) Close() error {
 	err := d.closer.Close()
 	if err != nil {
 		return errors.Wrap(err, "mp3")
@@ -129,22 +122,38 @@ func (d *decoder) Close() error {
 	return nil
 }
 
-type seekWrapper struct {
-	decoder
+type SeekableDecoder struct {
+	d Decoder
 }
 
-func (d *seekWrapper) Len() int {
-	return int(d.d.Length()) / gomp3BytesPerFrame
+func (sd *SeekableDecoder) Stream(samples [][2]float64) (n int, ok bool) {
+	return sd.d.Stream(samples)
 }
 
-func (d *seekWrapper) Seek(p int) error {
-	if p < 0 || d.Len() < p {
-		return fmt.Errorf("mp3: seek position %v out of range [%v, %v]", p, 0, d.Len())
+func (sd *SeekableDecoder) Err() error {
+	return sd.d.Err()
+}
+
+func (sd *SeekableDecoder) Position() int {
+	return sd.d.Position()
+}
+
+func (sd *SeekableDecoder) Close() error {
+	return sd.d.Close()
+}
+
+func (sd *SeekableDecoder) Len() int {
+	return int(sd.d.d.Length()) / gomp3BytesPerFrame
+}
+
+func (sd *SeekableDecoder) Seek(p int) error {
+	if p < 0 || sd.Len() < p {
+		return fmt.Errorf("mp3: seek position %v out of range [%v, %v]", p, 0, sd.Len())
 	}
-	_, err := d.d.Seek(int64(p)*gomp3BytesPerFrame, io.SeekStart)
+	_, err := sd.d.d.Seek(int64(p)*gomp3BytesPerFrame, io.SeekStart)
 	if err != nil {
 		return errors.Wrap(err, "mp3")
 	}
-	d.pos = p * gomp3BytesPerFrame
+	sd.d.pos = p * gomp3BytesPerFrame
 	return nil
 }
