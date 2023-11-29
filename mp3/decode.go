@@ -65,8 +65,8 @@ func DecodeReader(r io.ReadCloser) (*Decoder, beep.Format, error) {
 //
 // Do not close the supplied StreamCloser, instead, use the Close method of the returned
 // StreamSeekCloser when you want to release the resources.
-func DecodeReadSeeker(rc io.ReadSeekCloser) (*SeekableDecoder, beep.Format, error) {
-	d, format, err := DecodeReader(rc)
+func DecodeReadSeeker(r io.ReadSeekCloser) (*SeekableDecoder, beep.Format, error) {
+	d, format, err := DecodeReader(r)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
