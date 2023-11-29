@@ -15,36 +15,57 @@ import (
 //
 // Do not close the supplied Reader, instead, use the Close method of the returned
 // StreamSeekCloser when you want to release the resources.
-func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error) {
-	d := decoder{r: r}
-	defer func() { // hacky way to always close r if an error occurred
-		if closer, ok := d.r.(io.Closer); ok {
+//
+// Deprecated: Decode has been replaced with DecodeReader and DecodeReadSeeker.
+func Decode(r io.Reader) (beep.StreamSeekCloser, beep.Format, error) {
+	d := SeekableDecoder{d: Decoder{r: r}}
+	var err error
+
+	rs, seeker := r.(io.ReadSeeker)
+	if seeker {
+		d.d.stream, err = flac.NewSeek(rs)
+		d.d.seekEnabled = true
+	} else {
+		d.d.stream, err = flac.New(r)
+	}
+
+	if err != nil {
+		if closer, ok := r.(io.Closer); ok {
 			if err != nil {
 				closer.Close()
 			}
 		}
-	}()
-
-	rs, seeker := r.(io.ReadSeeker)
-	if seeker {
-		d.stream, err = flac.NewSeek(rs)
-		d.seekEnabled = true
-	} else {
-		d.stream, err = flac.New(r)
-	}
-
-	if err != nil {
 		return nil, beep.Format{}, errors.Wrap(err, "flac")
 	}
-	format = beep.Format{
-		SampleRate:  beep.SampleRate(d.stream.Info.SampleRate),
-		NumChannels: int(d.stream.Info.NChannels),
-		Precision:   int(d.stream.Info.BitsPerSample / 8),
-	}
-	return &d, format, nil
+
+	return &d, d.d.format(), nil
 }
 
-type decoder struct {
+func DecodeReader(r io.ReadCloser) (*Decoder, beep.Format, error) {
+	d := Decoder{r: r}
+	var err error
+	d.stream, err = flac.New(r)
+	if err != nil {
+		r.Close()
+		return nil, beep.Format{}, errors.Wrap(err, "flac")
+	}
+
+	return &d, d.format(), nil
+}
+
+func DecodeReadSeeker(r io.ReadSeekCloser) (*SeekableDecoder, beep.Format, error) {
+	d := SeekableDecoder{d: Decoder{r: r, seekEnabled: true}}
+	var err error
+	d.d.stream, err = flac.NewSeek(r)
+	if err != nil {
+		r.Close()
+		return nil, beep.Format{}, errors.Wrap(err, "flac")
+	}
+
+	return &d, d.d.format(), nil
+}
+
+type Decoder struct {
 	r           io.Reader
 	stream      *flac.Stream
 	buf         [][2]float64
@@ -53,7 +74,7 @@ type decoder struct {
 	seekEnabled bool
 }
 
-func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
+func (d *Decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	if d.err != nil {
 		return 0, false
 	}
@@ -82,7 +103,7 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 }
 
 // refill decodes audio samples to fill the decode buffer.
-func (d *decoder) refill() error {
+func (d *Decoder) refill() error {
 	// Empty buffer.
 	d.buf = d.buf[:0]
 	// Parse audio frame.
@@ -139,30 +160,19 @@ func (d *decoder) refill() error {
 	return nil
 }
 
-func (d *decoder) Err() error {
+func (d *Decoder) Err() error {
 	return d.err
 }
 
-func (d *decoder) Len() int {
+func (d *Decoder) Len() int {
 	return int(d.stream.Info.NSamples)
 }
 
-func (d *decoder) Position() int {
+func (d *Decoder) Position() int {
 	return d.pos
 }
 
-// Seek seeks to the start of the frame containing the given absolute sample number.
-func (d *decoder) Seek(p int) error {
-	if !d.seekEnabled {
-		return errors.New("flac.decoder.Seek: not enabled")
-	}
-
-	pos, err := d.stream.Seek(uint64(p))
-	d.pos = int(pos)
-	return err
-}
-
-func (d *decoder) Close() error {
+func (d *Decoder) Close() error {
 	if closer, ok := d.r.(io.Closer); ok {
 		err := closer.Close()
 		if err != nil {
@@ -170,4 +180,47 @@ func (d *decoder) Close() error {
 		}
 	}
 	return nil
+}
+
+func (d *Decoder) format() beep.Format {
+	return beep.Format{
+		SampleRate:  beep.SampleRate(d.stream.Info.SampleRate),
+		NumChannels: int(d.stream.Info.NChannels),
+		Precision:   int(d.stream.Info.BitsPerSample / 8),
+	}
+}
+
+type SeekableDecoder struct {
+	d Decoder
+}
+
+func (sd *SeekableDecoder) Stream(samples [][2]float64) (n int, ok bool) {
+	return sd.d.Stream(samples)
+}
+
+func (sd *SeekableDecoder) Err() error {
+	return sd.d.Err()
+}
+
+func (sd *SeekableDecoder) Len() int {
+	return sd.d.Len()
+}
+
+func (sd *SeekableDecoder) Position() int {
+	return sd.d.Position()
+}
+
+func (sd *SeekableDecoder) Close() error {
+	return sd.d.Close()
+}
+
+// Seek seeks to the start of the frame containing the given absolute sample number.
+func (sd *SeekableDecoder) Seek(p int) error {
+	if !sd.d.seekEnabled {
+		return errors.New("flac.decoder.Seek: not enabled")
+	}
+
+	pos, err := sd.d.stream.Seek(uint64(p))
+	sd.d.pos = int(pos)
+	return err
 }
