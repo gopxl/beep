@@ -151,7 +151,7 @@ func (d *decoder) Position() int {
 	return d.pos
 }
 
-// p represents flac sample num perhaps?
+// Seek seeks to the start of the frame containing the given absolute sample number.
 func (d *decoder) Seek(p int) error {
 	if !d.seekEnabled {
 		return errors.New("flac.decoder.Seek: not enabled")
