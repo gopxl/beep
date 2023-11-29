@@ -31,9 +31,7 @@ func Decode(r io.Reader) (beep.StreamSeekCloser, beep.Format, error) {
 
 	if err != nil {
 		if closer, ok := r.(io.Closer); ok {
-			if err != nil {
-				closer.Close()
-			}
+			closer.Close()
 		}
 		return nil, beep.Format{}, errors.Wrap(err, "flac")
 	}
