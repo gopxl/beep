@@ -91,9 +91,7 @@ func TestMix(t *testing.T) {
 
 	got := testtools.Collect(beep.Mix(s...))
 
-	if !reflect.DeepEqual(want, got) {
-		t.Error("Mix not working correctly")
-	}
+	testtools.AssertSamplesEqual(t, want, got)
 }
 
 func TestDup(t *testing.T) {

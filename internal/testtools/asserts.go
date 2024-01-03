@@ -57,3 +57,25 @@ func AssertStreamerHasCorrectReturnBehaviour(t *testing.T, s beep.Streamer, expe
 	assert.Equal(t, 0, n)
 	assert.NoError(t, s.Err())
 }
+
+func AssertSamplesEqual(t *testing.T, expected, actual [][2]float64) {
+	t.Helper()
+
+	if len(expected) != len(actual) {
+		t.Errorf("expected sample data length to be %d, got %d", len(expected), len(actual))
+		return
+	}
+
+	const epsilon = 1e-9
+	equals := true
+	for i := range expected {
+		if actual[i][0] < expected[i][0]-epsilon || actual[i][0] > expected[i][0]+epsilon ||
+			actual[i][1] < expected[i][1]-epsilon || actual[i][1] > expected[i][1]+epsilon {
+			equals = false
+			break
+		}
+	}
+	if !equals {
+		t.Errorf("the sample data isn't equal to the expected data")
+	}
+}
