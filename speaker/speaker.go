@@ -4,6 +4,7 @@ package speaker
 import (
 	"io"
 	"sync"
+	"time"
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/pkg/errors"
@@ -21,6 +22,8 @@ var (
 	mixer   beep.Mixer
 	context *oto.Context
 	player  *oto.Player
+
+	bufferDuration time.Duration
 )
 
 // Init initializes audio playback through speaker. Must be called before using this package.
@@ -60,6 +63,8 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 	player.SetBufferSize(playerBufferSize * bytesPerSample)
 	player.Play()
 
+	bufferDuration = sampleRate.D(bufferSize)
+
 	return nil
 }
 
@@ -93,6 +98,25 @@ func Play(s ...beep.Streamer) {
 	mu.Lock()
 	mixer.Add(s...)
 	mu.Unlock()
+}
+
+// PlayAndWait plays all provided Streamers through the speaker and waits until they have all finished playing.
+func PlayAndWait(s ...beep.Streamer) {
+	mu.Lock()
+	var wg sync.WaitGroup
+	wg.Add(len(s))
+	for _, e := range s {
+		mixer.Add(beep.Seq(e, beep.Callback(func() {
+			wg.Done()
+		})))
+	}
+	mu.Unlock()
+
+	// Wait for the streamers to drain.
+	wg.Wait()
+
+	// Wait the expected time it takes for the samples to reach the driver.
+	time.Sleep(bufferDuration)
 }
 
 // Suspend suspends the entire audio play.
