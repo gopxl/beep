@@ -45,7 +45,7 @@ func Init(sampleRate beep.SampleRate, bufferSize int) error {
 
 	var err error
 	var readyChan chan struct{}
-	context, readyChan, err := oto.NewContext(&oto.NewContextOptions{
+	context, readyChan, err = oto.NewContext(&oto.NewContextOptions{
 		SampleRate:   int(sampleRate),
 		ChannelCount: channelCount,
 		Format:       otoFormat,
@@ -93,6 +93,27 @@ func Play(s ...beep.Streamer) {
 	mu.Lock()
 	mixer.Add(s...)
 	mu.Unlock()
+}
+
+// Suspend suspends the entire audio play.
+//
+// This function is intended to save resources when no audio is playing.
+// To suspend individual streams, use the beep.Ctrl.
+func Suspend() error {
+	err := context.Suspend()
+	if err != nil {
+		return errors.Wrap(err, "failed to suspend the speaker")
+	}
+	return nil
+}
+
+// Resume resumes the entire audio play, which was suspended by Suspend.
+func Resume() error {
+	err := context.Resume()
+	if err != nil {
+		return errors.Wrap(err, "failed to resume the speaker")
+	}
+	return nil
 }
 
 // Clear removes all currently playing Streamers from the speaker.
