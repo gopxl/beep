@@ -17,8 +17,8 @@ import (
 //	speaker.Init(sr, sr.N(time.Second/2))
 //	speaker.Play(beep.Resample(3, format.SampleRate, sr, s))
 //
-// In the example, the original sample rate of the source if format.SampleRate. We want to play it
-// at the speaker's native sample rate and thus we need to resample.
+// In the example above, the original sample rate of the source is format.SampleRate. We want to play
+// it at the speaker's native sample rate and thus we need to resample.
 //
 // The quality argument specifies the quality of the resampling process. Higher quality implies
 // worse performance. Values below 1 or above 64 are invalid and Resample will panic. Here's a table
