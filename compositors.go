@@ -98,44 +98,10 @@ func Seq(s ...Streamer) Streamer {
 //
 // Mix does not propagate errors from the Streamers.
 func Mix(s ...Streamer) Streamer {
-	return StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
-		var tmp [512][2]float64
-
-		for len(samples) > 0 {
-			toStream := len(tmp)
-			if toStream > len(samples) {
-				toStream = len(samples)
-			}
-
-			// clear the samples
-			for i := range samples[:toStream] {
-				samples[i] = [2]float64{}
-			}
-
-			snMax := 0 // max number of streamed samples in this iteration
-			for _, st := range s {
-				// mix the stream
-				sn, sok := st.Stream(tmp[:toStream])
-				if sn > snMax {
-					snMax = sn
-				}
-				ok = ok || sok
-
-				for i := range tmp[:sn] {
-					samples[i][0] += tmp[i][0]
-					samples[i][1] += tmp[i][1]
-				}
-			}
-
-			n += snMax
-			if snMax < len(tmp) {
-				break
-			}
-			samples = samples[snMax:]
-		}
-
-		return n, ok
-	})
+	return &Mixer{
+		streamers:     s,
+		stopWhenEmpty: true,
+	}
 }
 
 // Dup returns two Streamers which both stream the same data as the original s. The two Streamers
