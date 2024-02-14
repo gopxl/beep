@@ -15,7 +15,7 @@ func TestDecoder_ReturnBehaviour(t *testing.T) {
 	assert.NoError(t, err)
 	defer f.Close()
 
-	s, _, err := flac.Decode(f)
+	s, _, err := flac.DecodeReadSeeker(f)
 	assert.NoError(t, err)
 	assert.Equal(t, 22050, s.Len())
 
