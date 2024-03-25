@@ -55,5 +55,5 @@ Running an already built application should work with no extra dependencies.
 - [Microphone support for Beep (a wrapper around PortAudio)](https://github.com/MarkKremer/microphone)
 
 ## Projects using Beep
-
+- [retro](https://github.com/Malwarize/retro)
 - [Mifasol music server](https://github.com/jypelle/mifasol)
