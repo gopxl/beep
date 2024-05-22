@@ -30,6 +30,17 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 		return nil, beep.Format{}, err
 	}
 
+	channels := d.Channels()
+	if channels > 2 {
+		channels = 2
+	}
+
+	format = beep.Format{
+		SampleRate:  beep.SampleRate(d.SampleRate()),
+		NumChannels: channels,
+		Precision:   govorbisPrecision,
+	}
+
 	return &decoder{rc, d, make([]float32, d.Channels()), nil}, format, nil
 }
 
