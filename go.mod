@@ -3,7 +3,7 @@ module github.com/gopxl/beep
 go 1.21
 
 require (
-	github.com/ebitengine/oto/v3 v3.1.0
+	github.com/ebitengine/oto/v3 v3.2.0
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/jfreymuth/oggvorbis v1.0.5
@@ -24,7 +24,7 @@ require (
 	github.com/mewkiz/pkg v0.0.0-20230226050401-4010bf0fec14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
