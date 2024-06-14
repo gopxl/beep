@@ -15,7 +15,7 @@ func TestDecoder_ReturnBehaviour(t *testing.T) {
 	assert.NoError(t, err)
 	defer f.Close()
 
-	s, _, err := mp3.Decode(f)
+	s, _, err := mp3.DecodeReadSeeker(f)
 	assert.NoError(t, err)
 	// The length of the streamer isn't tested because mp3 files have
 	// a different padding depending on the decoder used.
