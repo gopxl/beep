@@ -131,11 +131,11 @@ func floatToSigned(precision int, x float64) uint64 {
 		compl := uint64(-x * math.Exp2(float64(precision)*8-1))
 		return uint64(1<<uint(precision*8)) - compl
 	}
-	return uint64(x * math.Exp2(float64(precision)*8-1))
+	return uint64(math.Min(x*math.Exp2(float64(precision)*8-1), math.Exp2(float64(precision)*8-1)-1))
 }
 
 func floatToUnsigned(precision int, x float64) uint64 {
-	return uint64((x + 1) / 2 * math.Exp2(float64(precision)*8))
+	return uint64(math.Min((x+1)/2*math.Exp2(float64(precision)*8), math.Exp2(float64(precision)*8)-1))
 }
 
 func signedToFloat(precision int, xUint64 uint64) float64 {

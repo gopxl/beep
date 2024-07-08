@@ -225,8 +225,8 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		}
 	case d.h.BitsPerSample == 8 && d.h.NumChans >= 2:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			samples[j][0] = float64(p[i+0])/(1<<8-1)*2 - 1
-			samples[j][1] = float64(p[i+1])/(1<<8-1)*2 - 1
+			samples[j][0] = float64(p[i+0])/(1<<8)*2 - 1
+			samples[j][1] = float64(p[i+1])/(1<<8)*2 - 1
 		}
 	case d.h.BitsPerSample == 16 && d.h.NumChans == 1:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
