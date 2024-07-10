@@ -1,10 +1,14 @@
 package wav
 
 import (
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/generators"
+	"github.com/gopxl/beep/internal/testtools"
 
 	"github.com/orcaman/writerseeker"
 	"github.com/stretchr/testify/assert"
@@ -71,4 +75,65 @@ func TestEncode(t *testing.T) {
 		0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00,
 	}, encoded, "the encoded file isn't formatted as expected")
+}
+
+func TestEncodeDecodeRoundTrip(t *testing.T) {
+	numChannelsS := []int{1, 2}
+	precisions := []int{1, 2, 3}
+
+	for _, numChannels := range numChannelsS {
+		for _, precision := range precisions {
+			name := fmt.Sprintf("%d_channel(s)_%d_precision", numChannels, precision)
+			t.Run(name, func(t *testing.T) {
+				var s beep.Streamer
+				s, data := testtools.RandomDataStreamer(1000)
+
+				if numChannels == 1 {
+					s = effects.Mono(s)
+					for i := range data {
+						mix := (data[i][0] + data[i][1]) / 2
+						data[i][0] = mix
+						data[i][1] = mix
+					}
+				}
+
+				var w writerseeker.WriterSeeker
+
+				format := beep.Format{SampleRate: 44100, NumChannels: numChannels, Precision: precision}
+
+				err := Encode(&w, s, format)
+				assert.NoError(t, err)
+
+				s, decodedFormat, err := Decode(w.Reader())
+				assert.NoError(t, err)
+				assert.Equal(t, format, decodedFormat)
+
+				actual := testtools.Collect(s)
+				assert.Len(t, actual, 1000)
+
+				// Delta is determined as follows:
+				// The float values range from -1 to 1, which difference is 2.0.
+				// For each byte of precision, there are 8 bits -> 2^(precision*8) different possible values.
+				// So, fitting 2^(precision*8) values into a range of 2.0, each "step" must not
+				// be bigger than 2.0 / math.Exp2(float64(precision*8)).
+				delta := 2.0 / math.Exp2(float64(precision*8))
+				for i := range actual {
+					// Adjust for clipping.
+					if data[i][0] >= 1.0 {
+						data[i][0] = 1.0 - 1.0/(math.Exp2(float64(precision)*8-1))
+					}
+					if data[i][1] >= 1.0 {
+						data[i][1] = 1.0 - 1.0/(math.Exp2(float64(precision)*8-1))
+					}
+
+					if actual[i][0] <= data[i][0]-delta || actual[i][0] >= data[i][0]+delta {
+						t.Fatalf("encoded & decoded sample doesn't match orginal. expected: %v, actual: %v", data[i][0], actual[i][0])
+					}
+					if actual[i][1] <= data[i][1]-delta || actual[i][1] >= data[i][1]+delta {
+						t.Fatalf("encoded & decoded sample doesn't match orginal. expected: %v, actual: %v", data[i][1], actual[i][1])
+					}
+				}
+			})
+		}
+	}
 }
