@@ -128,26 +128,26 @@ func decodeFloat(signed bool, precision int, p []byte) (x float64, n int) {
 
 func floatToSigned(precision int, x float64) uint64 {
 	if x < 0 {
-		compl := uint64(-x * (math.Exp2(float64(precision)*8-1) - 1))
+		compl := uint64(-x * math.Exp2(float64(precision)*8-1))
 		return uint64(1<<uint(precision*8)) - compl
 	}
-	return uint64(x * (math.Exp2(float64(precision)*8-1) - 1))
+	return uint64(math.Min(x*math.Exp2(float64(precision)*8-1), math.Exp2(float64(precision)*8-1)-1))
 }
 
 func floatToUnsigned(precision int, x float64) uint64 {
-	return uint64((x + 1) / 2 * (math.Exp2(float64(precision)*8) - 1))
+	return uint64(math.Min((x+1)/2*math.Exp2(float64(precision)*8), math.Exp2(float64(precision)*8)-1))
 }
 
 func signedToFloat(precision int, xUint64 uint64) float64 {
 	if xUint64 >= 1<<uint(precision*8-1) {
 		compl := 1<<uint(precision*8) - xUint64
-		return -float64(int64(compl)) / (math.Exp2(float64(precision)*8-1) - 1)
+		return -float64(int64(compl)) / math.Exp2(float64(precision)*8-1)
 	}
-	return float64(int64(xUint64)) / (math.Exp2(float64(precision)*8-1) - 1)
+	return float64(int64(xUint64)) / math.Exp2(float64(precision)*8-1)
 }
 
 func unsignedToFloat(precision int, xUint64 uint64) float64 {
-	return float64(xUint64)/(math.Exp2(float64(precision)*8)-1)*2 - 1
+	return float64(xUint64)/(math.Exp2(float64(precision)*8))*2 - 1
 }
 
 func norm(x float64) float64 {
