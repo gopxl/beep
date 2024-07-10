@@ -5,9 +5,160 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/generators"
 )
+
+type bufferFormatTestCase struct {
+	Name           string
+	Precision      int
+	NumChannels    int
+	Signed         bool
+	Bytes          []byte
+	Samples        [2]float64
+	SkipDecodeTest bool
+}
+
+var bufferFormatTests = []bufferFormatTestCase{
+	// See https://gist.github.com/endolith/e8597a58bcd11a6462f33fa8eb75c43d
+	// for an explanation about the asymmetry in sample encodings in WAV when
+	// converting between ints and floats. Note that Beep does not follow the
+	// suggested solution. Instead, integer samples are divided by 1 more, so
+	// that the resulting float value falls within the range of -1.0 and 1.0.
+	// This is similar to how some other tools do the conversion.
+	{
+		Name:        "1 channel 8bit WAV negative full scale",
+		Precision:   1,
+		NumChannels: 1,
+		Signed:      false,
+		Bytes:       []byte{0x00},
+		Samples:     [2]float64{-1.0, -1.0},
+	},
+	{
+		Name:        "1 channel 8bit WAV midpoint",
+		Precision:   1,
+		NumChannels: 1,
+		Signed:      false,
+		Bytes:       []byte{0x80},
+		Samples:     [2]float64{0.0, 0.0},
+	},
+	{
+		// Because the WAV integer range is asymmetric, converting it to float
+		// by division will not result in an exactly 1.0 full scale float value.
+		// It will be 1 least significant bit integer value lower. "1", converted
+		// to float for an 8-bit WAV sample is 1 / (1 << 7).
+		Name:        "1 channel 8bit WAV positive full scale minus 1 significant bit",
+		Precision:   1,
+		NumChannels: 1,
+		Signed:      false,
+		Bytes:       []byte{0xFF},
+		Samples:     [2]float64{1.0 - (1.0 / (1 << 7)), 1.0 - (1.0 / (1 << 7))},
+	},
+	{
+		Name:        "2 channel 8bit WAV full scale",
+		Precision:   1,
+		NumChannels: 2,
+		Signed:      false,
+		Bytes:       []byte{0x00, 0xFF},
+		Samples:     [2]float64{-1.0, 1.0 - (1.0 / (1 << 7))},
+	},
+	{
+		Name:        "1 channel 16bit WAV negative full scale",
+		Precision:   2,
+		NumChannels: 1,
+		Signed:      true,
+		Bytes:       []byte{0x00, 0x80},
+		Samples:     [2]float64{-1.0, -1.0},
+	},
+	{
+		Name:        "1 channel 16bit WAV midpoint",
+		Precision:   2,
+		NumChannels: 1,
+		Signed:      true,
+		Bytes:       []byte{0x00, 0x00},
+		Samples:     [2]float64{0.0, 0.0},
+	},
+	{
+		// Because the WAV integer range is asymmetric, converting it to float
+		// by division will not result in an exactly 1.0 full scale float value.
+		// It will be 1 least significant bit integer value lower. "1", converted
+		// to float for an 16-bit WAV sample is 1 / (1 << 15).
+		Name:        "1 channel 16bit WAV positive full scale minus 1 significant bit",
+		Precision:   2,
+		NumChannels: 1,
+		Signed:      true,
+		Bytes:       []byte{0xFF, 0x7F},
+		Samples:     [2]float64{1.0 - (1.0 / (1 << 15)), 1.0 - (1.0 / (1 << 15))},
+	},
+	{
+		Name:           "1 channel 8bit WAV float positive full scale clipping test",
+		Precision:      1,
+		NumChannels:    1,
+		Signed:         false,
+		Bytes:          []byte{0xFF},
+		Samples:        [2]float64{1.0, 1.0},
+		SkipDecodeTest: true,
+	},
+	{
+		Name:           "1 channel 16bit WAV float positive full scale clipping test",
+		Precision:      2,
+		NumChannels:    1,
+		Signed:         true,
+		Bytes:          []byte{0xFF, 0x7F},
+		Samples:        [2]float64{1.0, 1.0},
+		SkipDecodeTest: true,
+	},
+}
+
+func TestFormatDecode(t *testing.T) {
+	for _, test := range bufferFormatTests {
+		if test.SkipDecodeTest {
+			continue
+		}
+
+		t.Run(test.Name, func(t *testing.T) {
+			format := beep.Format{
+				SampleRate:  44100,
+				Precision:   test.Precision,
+				NumChannels: test.NumChannels,
+			}
+
+			var sample [2]float64
+			var n int
+			if test.Signed {
+				sample, n = format.DecodeSigned(test.Bytes)
+			} else {
+				sample, n = format.DecodeUnsigned(test.Bytes)
+			}
+			assert.Equal(t, len(test.Bytes), n)
+			assert.Equal(t, test.Samples, sample)
+		})
+	}
+}
+
+func TestFormatEncode(t *testing.T) {
+	for _, test := range bufferFormatTests {
+		t.Run(test.Name, func(t *testing.T) {
+			format := beep.Format{
+				SampleRate:  44100,
+				Precision:   test.Precision,
+				NumChannels: test.NumChannels,
+			}
+
+			bytes := make([]byte, test.Precision*test.NumChannels)
+			var n int
+			if test.Signed {
+				n = format.EncodeSigned(bytes, test.Samples)
+			} else {
+				n = format.EncodeUnsigned(bytes, test.Samples)
+			}
+			assert.Equal(t, len(test.Bytes), n)
+			assert.Equal(t, test.Bytes, bytes)
+		})
+	}
+}
 
 func TestFormatEncodeDecode(t *testing.T) {
 	formats := make(chan beep.Format)
