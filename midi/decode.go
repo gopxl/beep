@@ -4,7 +4,6 @@ package midi
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/samhocevar/go-meltysynth/meltysynth"
@@ -13,7 +12,6 @@ import (
 )
 
 const (
-	midiSampleRate  = 44100
 	midiNumChannels = 2
 	midiPrecision   = 4
 )
@@ -36,13 +34,14 @@ type SoundFont struct {
 //
 // Do not close the supplied ReadSeekCloser, instead, use the Close method of the returned
 // StreamSeekCloser when you want to release the resources.
-func Decode(rc io.ReadCloser, sf *SoundFont) (s beep.StreamSeekCloser, format beep.Format, err error) {
+func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeekCloser, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
 			err = errors.Wrap(err, "midi")
 		}
 	}()
-	settings := meltysynth.NewSynthesizerSettings(midiSampleRate)
+
+	settings := meltysynth.NewSynthesizerSettings(int32(sampleRate))
 	synth, err := meltysynth.NewSynthesizer(sf.sf, settings)
 	if err != nil {
 		return nil, beep.Format{}, err
@@ -54,19 +53,20 @@ func Decode(rc io.ReadCloser, sf *SoundFont) (s beep.StreamSeekCloser, format be
 	seq := meltysynth.NewMidiFileSequencer(synth)
 	seq.Play(mf /*loop*/, false)
 	format = beep.Format{
-		SampleRate:  beep.SampleRate(midiSampleRate),
+		SampleRate:  sampleRate,
 		NumChannels: midiNumChannels,
 		Precision:   midiPrecision,
 	}
-	return &decoder{rc, synth, mf, seq, nil}, format, nil
+	return &decoder{rc, synth, mf, seq, sampleRate, nil}, format, nil
 }
 
 type decoder struct {
-	closer io.Closer
-	synth  *meltysynth.Synthesizer
-	mf     *meltysynth.MidiFile
-	seq    *meltysynth.MidiFileSequencer
-	err    error
+	closer     io.Closer
+	synth      *meltysynth.Synthesizer
+	mf         *meltysynth.MidiFile
+	seq        *meltysynth.MidiFileSequencer
+	sampleRate beep.SampleRate
+	err        error
 }
 
 func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
@@ -92,18 +92,18 @@ func (d *decoder) Err() error {
 }
 
 func (d *decoder) Len() int {
-	return int(d.mf.GetLength().Seconds() * midiSampleRate)
+	return d.sampleRate.N(d.mf.GetLength())
 }
 
 func (d *decoder) Position() int {
-	return int(d.seq.Pos().Seconds() * midiSampleRate)
+	return d.sampleRate.N(d.seq.Pos())
 }
 
 func (d *decoder) Seek(p int) error {
 	if p < 0 || d.Len() < p {
 		return fmt.Errorf("midi: seek position %v out of range [%v, %v]", p, 0, d.Len())
 	}
-	d.seq.Seek(time.Duration(float64(time.Second) * float64(p) / float64(midiSampleRate)))
+	d.seq.Seek(d.sampleRate.D(p))
 	return nil
 }
 
