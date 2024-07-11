@@ -17,8 +17,14 @@ const (
 )
 
 // NewSoundFont reads a sound font containing instruments. A sound font is required in order to play MIDI files.
-func NewSoundFont(r io.Reader) (*SoundFont, error) {
+//
+// NewSoundFont closes the supplied ReadCloser.
+func NewSoundFont(r io.ReadCloser) (*SoundFont, error) {
 	sf, err := meltysynth.NewSoundFont(r)
+	if err != nil {
+		return nil, err
+	}
+	err = r.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -29,12 +35,11 @@ type SoundFont struct {
 	sf *meltysynth.SoundFont
 }
 
-// Decode takes a ReadCloser containing audio data in MIDI format and returns a StreamSeekCloser,
-// which streams that audio. The Seek method will panic if rc is not io.Seeker.
+// Decode takes a ReadCloser containing audio data in MIDI format and a SoundFont to synthesize the sounds
+// and returns a beep.StreamSeeker, which streams the audio.
 //
-// Do not close the supplied ReadSeekCloser, instead, use the Close method of the returned
-// StreamSeekCloser when you want to release the resources.
-func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeekCloser, format beep.Format, err error) {
+// Decode closes the supplied ReadCloser.
+func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeeker, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
 			err = errors.Wrap(err, "midi")
@@ -51,6 +56,10 @@ func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
+	err = rc.Close()
+	if err != nil {
+		return nil, beep.Format{}, err
+	}
 
 	seq := meltysynth.NewMidiFileSequencer(synth)
 	seq.Play(mf /*loop*/, false)
@@ -62,7 +71,6 @@ func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep
 	}
 
 	return &decoder{
-		closer:     rc,
 		synth:      synth,
 		mf:         mf,
 		seq:        seq,
@@ -73,7 +81,6 @@ func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep
 }
 
 type decoder struct {
-	closer            io.Closer
 	synth             *meltysynth.Synthesizer
 	mf                *meltysynth.MidiFile
 	seq               *meltysynth.MidiFileSequencer
@@ -128,14 +135,5 @@ func (d *decoder) Seek(p int) error {
 		return fmt.Errorf("midi: seek position %v out of range [%v, %v]", p, 0, d.Len())
 	}
 	d.seq.Seek(d.sampleRate.D(p))
-	return nil
-}
-
-func (d *decoder) Close() error {
-	err := d.closer.Close()
-	if err != nil {
-		return errors.Wrap(err, "midi")
-	}
-	d.seq.Stop()
 	return nil
 }
