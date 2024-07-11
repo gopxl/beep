@@ -68,7 +68,7 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 // changing of the resampling ratio, which can be useful for dynamically changing the speed of
 // streaming.
 type Resampler struct {
-	s          Streamer     // the orignal streamer
+	s          Streamer     // the original streamer
 	ratio      float64      // old sample rate / new sample rate
 	buf1, buf2 [][2]float64 // buf1 contains previous buf2, new data goes into buf2, buf1 is because interpolation might require old samples
 	pts        []point      // pts is for points used for interpolation
