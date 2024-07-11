@@ -49,7 +49,22 @@ func resampleCorrect(quality int, old, new beep.SampleRate, p [][2]float64) [][2
 					pts[k] = point{X: float64(l), Y: 0}
 				}
 			}
-			y := lagrange(pts[:], j)
+
+			startK := 0
+			for k, pt := range pts {
+				if pt.X >= 0 {
+					startK = k
+					break
+				}
+			}
+			endK := 0
+			for k, pt := range pts {
+				if pt.X < float64(len(p)) {
+					endK = k + 1
+				}
+			}
+
+			y := lagrange(pts[startK:endK], j)
 			sample[c] = y
 		}
 		resampled = append(resampled, sample)

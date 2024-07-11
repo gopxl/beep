@@ -94,11 +94,6 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 			sn, _ := r.s.Stream(r.buf1)
 			if sn < len(r.buf1) {
 				r.end = r.off + resamplerSingleBufferSize + sn
-
-				// Zero the rest of the buffer
-				for i := sn; i < len(r.buf1); i++ {
-					r.buf1[i] = [2]float64{}
-				}
 			}
 
 			// Swap buffers.
@@ -112,12 +107,12 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 		}
 
 		// Adjust the window to be within the available buffers.
-		//if windowStart < 0 {
-		//	windowStart = 0
-		//}
-		//if windowEnd > r.end {
-		//	windowEnd = r.end
-		//}
+		if windowStart < 0 {
+			windowStart = 0
+		}
+		if windowEnd > r.end {
+			windowEnd = r.end
+		}
 
 		// For each channel...
 		for c := range samples[0] {
@@ -143,7 +138,7 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 
 			// Calculate the resampled sample using polynomial interpolation from the
 			// quality*2 closest samples.
-			samples[0][c] = lagrange(r.pts, wantPos)
+			samples[0][c] = lagrange(pts, wantPos)
 		}
 
 		samples = samples[1:]
