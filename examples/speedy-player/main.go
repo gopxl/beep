@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/mp3"
@@ -128,13 +129,21 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 
 		case 'z':
 			speaker.Lock()
-			ap.resampler.SetRatio(ap.resampler.Ratio() * 15 / 16)
+			newRatio := ap.resampler.Ratio() * 15 / 16
+			if newRatio < 0.001 {
+				newRatio = 0.001
+			}
+			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
 
 		case 'x':
 			speaker.Lock()
-			ap.resampler.SetRatio(ap.resampler.Ratio() * 16 / 15)
+			newRatio := ap.resampler.Ratio() * 16 / 15
+			if newRatio > 100 {
+				newRatio = 100
+			}
+			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
 		}
