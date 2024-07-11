@@ -5,6 +5,8 @@ import (
 	"math"
 )
 
+const resamplerSingleBufferSize = 512
+
 // Resample takes a Streamer which is assumed to stream at the old sample rate and returns a
 // Streamer, which streams the data from the original Streamer resampled to the new sample rate.
 //
@@ -53,12 +55,12 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 	return &Resampler{
 		s:     s,
 		ratio: ratio,
-		first: true,
-		buf1:  make([][2]float64, 512),
-		buf2:  make([][2]float64, 512),
+		buf1:  make([][2]float64, resamplerSingleBufferSize),
+		buf2:  make([][2]float64, resamplerSingleBufferSize),
 		pts:   make([]point, quality*2),
-		off:   0,
+		off:   -resamplerSingleBufferSize,
 		pos:   0,
+		end:   math.MaxInt,
 	}
 }
 
@@ -68,77 +70,88 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 type Resampler struct {
 	s          Streamer     // the orignal streamer
 	ratio      float64      // old sample rate / new sample rate
-	first      bool         // true when Stream was not called before
 	buf1, buf2 [][2]float64 // buf1 contains previous buf2, new data goes into buf2, buf1 is because interpolation might require old samples
 	pts        []point      // pts is for points used for interpolation
 	off        int          // off is the position of the start of buf2 in the original data
 	pos        int          // pos is the current position in the resampled data
+	end        int          // end is the position after the last sample in the original data
 }
 
 // Stream streams the original audio resampled according to the current ratio.
 func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
-	// if it's the first time, we need to fill buf2 with initial data, buf1 remains zeroed
-	if r.first {
-		sn, _ := r.s.Stream(r.buf2)
-		r.buf2 = r.buf2[:sn]
-		r.first = false
-	}
-	// we start resampling, sample by sample
 	for len(samples) > 0 {
-	again:
-		for c := range samples[0] {
-			// calculate the current position in the original data
-			j := float64(r.pos) * r.ratio
+		// Calculate the current position in the original data.
+		wantPos := float64(r.pos) * r.ratio
 
-			// find quality*2 closest samples to j and translate them to points for interpolation
-			for pi := range r.pts {
-				// calculate the index of one of the closest samples
-				k := int(j) + pi - len(r.pts)/2 + 1
+		// Determine the quality*2 closest sample positions for the interpolation.
+		// The window has length len(r.pts) and is centered around wantPos.
+		// todo: check if this is actually centered around wantPos
+		windowStart := int(wantPos) - len(r.pts)/2 + 1 // (inclusive)
+		windowEnd := int(wantPos) + len(r.pts)/2 + 1   // (exclusive)
 
-				var y float64
-				switch {
-				// the sample is in buf1
-				case k < r.off:
-					y = r.buf1[len(r.buf1)+k-r.off][c]
-				// the sample is in buf2
-				case k < r.off+len(r.buf2):
-					y = r.buf2[k-r.off][c]
-				// the sample is beyond buf2, so we need to load new data
-				case k >= r.off+len(r.buf2):
-					// we load into buf1
-					sn, _ := r.s.Stream(r.buf1)
-					// this condition happens when the original Streamer got
-					// drained and j is after the end of the
-					// original data
-					if int(j) >= r.off+len(r.buf2)+sn {
-						return n, n > 0
-					}
-					// this condition happens when the original Streamer got
-					// drained and this one of the closest samples is after the
-					// end of the original data
-					if k >= r.off+len(r.buf2)+sn {
-						y = 0
-						break
-					}
-					// otherwise everything is fine, we swap buffers and start
-					// calculating the sample again
-					r.off += len(r.buf2)
-					r.buf1 = r.buf1[:sn]
-					r.buf1, r.buf2 = r.buf2, r.buf1
-					goto again
+		// Prepare the buffers.
+		if windowEnd >= r.off+resamplerSingleBufferSize {
+			// We load into buf1.
+			sn, _ := r.s.Stream(r.buf1)
+			if sn < len(r.buf1) {
+				r.end = r.off + resamplerSingleBufferSize + sn
+
+				// Zero the rest of the buffer
+				for i := sn; i < len(r.buf1); i++ {
+					r.buf1[i] = [2]float64{}
 				}
-
-				r.pts[pi] = point{float64(k), y}
 			}
 
-			// calculate the resampled sample using polynomial interpolation from the
-			// quality*2 closest samples
-			samples[0][c] = lagrange(r.pts, j)
+			// Swap buffers.
+			r.buf1, r.buf2 = r.buf2, r.buf1
+			r.off += resamplerSingleBufferSize
 		}
+
+		// Exit when wantPos is after the end of the original data.
+		if int(wantPos) >= r.end {
+			return n, n > 0
+		}
+
+		// Adjust the window to be within the available buffers.
+		//if windowStart < 0 {
+		//	windowStart = 0
+		//}
+		//if windowEnd > r.end {
+		//	windowEnd = r.end
+		//}
+
+		// For each channel...
+		for c := range samples[0] {
+			// Get the points.
+			numPts := windowEnd - windowStart
+			pts := r.pts[:numPts]
+			for i := range pts {
+				x := windowStart + i
+				var y float64
+				if x < r.off {
+					// Sample is in buf1.
+					offBuf1 := r.off - resamplerSingleBufferSize
+					y = r.buf1[x-offBuf1][c]
+				} else {
+					// Sample is in buf2.
+					y = r.buf2[x-r.off][c]
+				}
+				pts[i] = point{
+					X: float64(x),
+					Y: y,
+				}
+			}
+
+			// Calculate the resampled sample using polynomial interpolation from the
+			// quality*2 closest samples.
+			samples[0][c] = lagrange(r.pts, wantPos)
+		}
+
 		samples = samples[1:]
 		n++
 		r.pos++
 	}
+
 	return n, true
 }
 
