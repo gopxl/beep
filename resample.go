@@ -57,7 +57,7 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 		ratio: ratio,
 		buf1:  make([][2]float64, resamplerSingleBufferSize),
 		buf2:  make([][2]float64, resamplerSingleBufferSize),
-		pts:   make([]point, quality*2+1),
+		pts:   make([]point, quality*2),
 		off:   -resamplerSingleBufferSize,
 		pos:   0,
 		end:   math.MaxInt,
@@ -85,8 +85,8 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 
 		// Determine the quality*2 closest sample positions for the interpolation.
 		// The window has length len(r.pts) and is centered around wantPos.
-		windowStart := int(wantPos) - len(r.pts)/2   // (inclusive)
-		windowEnd := int(wantPos) + len(r.pts)/2 + 1 // (exclusive)
+		windowStart := int(wantPos) - (len(r.pts)-1)/2 // (inclusive)
+		windowEnd := int(wantPos) + len(r.pts)/2 + 1   // (exclusive)
 
 		// Prepare the buffers.
 		if windowEnd >= r.off+resamplerSingleBufferSize {

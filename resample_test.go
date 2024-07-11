@@ -32,7 +32,7 @@ func TestResample(t *testing.T) {
 
 func resampleCorrect(quality int, old, new beep.SampleRate, p [][2]float64) [][2]float64 {
 	ratio := float64(old) / float64(new)
-	pts := make([]point, quality*2+1)
+	pts := make([]point, quality*2)
 	var resampled [][2]float64
 	for i := 0; ; i++ {
 		j := float64(i) * ratio
