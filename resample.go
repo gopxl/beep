@@ -49,7 +49,7 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 	if quality < 1 || 64 < quality {
 		panic(fmt.Errorf("resample: invalid quality: %d", quality))
 	}
-	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+	if ratio <= 0 || math.IsInf(ratio, 0) || math.IsNaN(ratio) {
 		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
 	return &Resampler{
@@ -59,7 +59,7 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 		buf2:  make([][2]float64, resamplerSingleBufferSize),
 		pts:   make([]point, quality*2),
 		off:   -resamplerSingleBufferSize,
-		pos:   0,
+		pos:   0.0,
 		end:   math.MaxInt,
 	}
 }
@@ -73,7 +73,7 @@ type Resampler struct {
 	buf1, buf2 [][2]float64 // buf1 contains previous buf2, new data goes into buf2, buf1 is because interpolation might require old samples
 	pts        []point      // pts is for points used for interpolation
 	off        int          // off is the position of the start of buf2 in the original data
-	pos        int          // pos is the current position in the resampled data
+	pos        float64      // pos is the current position in the resampled data
 	end        int          // end is the position after the last sample in the original data
 }
 
@@ -81,7 +81,7 @@ type Resampler struct {
 func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 	for len(samples) > 0 {
 		// Calculate the current position in the original data.
-		wantPos := float64(r.pos) * r.ratio
+		wantPos := r.pos * r.ratio
 
 		// Determine the quality*2 closest sample positions for the interpolation.
 		// The window has length len(r.pts) and is centered around wantPos.
@@ -89,7 +89,7 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 		windowEnd := int(wantPos) + len(r.pts)/2 + 1   // (exclusive)
 
 		// Prepare the buffers.
-		if windowEnd >= r.off+resamplerSingleBufferSize {
+		for windowEnd > r.off+resamplerSingleBufferSize {
 			// We load into buf1.
 			sn, _ := r.s.Stream(r.buf1)
 			if sn < len(r.buf1) {
@@ -161,10 +161,10 @@ func (r *Resampler) Ratio() float64 {
 
 // SetRatio sets the resampling ratio. This does not cause any glitches in the stream.
 func (r *Resampler) SetRatio(ratio float64) {
-	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+	if ratio <= 0 || math.IsInf(ratio, 0) || math.IsNaN(ratio) {
 		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
-	r.pos = int(float64(r.pos) * r.ratio / ratio)
+	r.pos *= r.ratio / ratio
 	r.ratio = ratio
 }
 
