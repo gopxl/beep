@@ -16,7 +16,7 @@ const (
 	midiPrecision   = 4
 )
 
-// Read a sound font containing instruments. A sound font is required in order to play MIDI files.
+// NewSoundFont reads a sound font containing instruments. A sound font is required in order to play MIDI files.
 func NewSoundFont(r io.Reader) (*SoundFont, error) {
 	sf, err := meltysynth.NewSoundFont(r)
 	if err != nil {
