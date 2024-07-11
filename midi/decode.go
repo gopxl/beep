@@ -46,45 +46,69 @@ func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
+
 	mf, err := meltysynth.NewMidiFile(rc)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
+
 	seq := meltysynth.NewMidiFileSequencer(synth)
 	seq.Play(mf /*loop*/, false)
+
 	format = beep.Format{
 		SampleRate:  sampleRate,
 		NumChannels: midiNumChannels,
 		Precision:   midiPrecision,
 	}
-	return &decoder{rc, synth, mf, seq, sampleRate, nil}, format, nil
+
+	return &decoder{
+		closer:     rc,
+		synth:      synth,
+		mf:         mf,
+		seq:        seq,
+		sampleRate: sampleRate,
+		bufLeft:    make([]float32, 512),
+		bufRight:   make([]float32, 512),
+	}, format, nil
 }
 
 type decoder struct {
-	closer     io.Closer
-	synth      *meltysynth.Synthesizer
-	mf         *meltysynth.MidiFile
-	seq        *meltysynth.MidiFileSequencer
-	sampleRate beep.SampleRate
-	err        error
+	closer            io.Closer
+	synth             *meltysynth.Synthesizer
+	mf                *meltysynth.MidiFile
+	seq               *meltysynth.MidiFileSequencer
+	sampleRate        beep.SampleRate
+	bufLeft, bufRight []float32
+	err               error
 }
 
 func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	if d.err != nil {
 		return 0, false
 	}
-	sampleCount := d.Len() - d.Position()
-	if sampleCount > len(samples) {
-		sampleCount = len(samples)
+
+	samplesLeft := d.Len() - d.Position()
+	if len(samples) > samplesLeft {
+		samples = samples[:samplesLeft]
 	}
-	left := make([]float32, sampleCount)
-	right := make([]float32, sampleCount)
-	d.seq.Render(left, right)
-	for i := range left {
-		samples[i][0] = float64(left[i])
-		samples[i][1] = float64(right[i])
+
+	for len(samples) > 0 {
+		cn := len(d.bufLeft)
+		if cn > len(samples) {
+			cn = len(samples)
+		}
+
+		d.seq.Render(d.bufLeft[:cn], d.bufRight[:cn])
+		for i := 0; i < cn; i++ {
+			samples[i][0] = float64(d.bufLeft[i])
+			samples[i][1] = float64(d.bufRight[i])
+		}
+
+		samples = samples[cn:]
+		n += cn
 	}
-	return sampleCount, sampleCount > 0
+
+	return n, n > 0
 }
 
 func (d *decoder) Err() error {
