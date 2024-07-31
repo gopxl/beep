@@ -58,9 +58,17 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 		buf1:  make([][2]float64, resamplerSingleBufferSize),
 		buf2:  make([][2]float64, resamplerSingleBufferSize),
 		pts:   make([]point, quality*2),
-		off:   -resamplerSingleBufferSize,
-		pos:   0.0,
-		end:   math.MaxInt,
+		// The initial value of `off` is set so that the current position is just behind the end
+		// of buf2:
+		//   current position (0) - len(buf2) = -resamplerSingleBufferSize
+		// When the Stream() method is called for the first time, it will determine that neither
+		// buf1 nor buf2 contain the required samples because they are both in the past relative to
+		// the chosen `off` value. As a result, buf2 will be filled with samples, and `off` will be
+		// incremented by resamplerSingleBufferSize, making `off` equal to 0. This will align the
+		// start of buf2 with the current position.
+		off: -resamplerSingleBufferSize,
+		pos: 0.0,
+		end: math.MaxInt,
 	}
 }
 
