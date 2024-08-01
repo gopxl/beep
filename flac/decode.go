@@ -10,20 +10,10 @@ import (
 	"github.com/gopxl/beep"
 )
 
-// Decode takes a Reader containing audio data in FLAC format and returns a StreamSeekCloser,
+// Decode takes an io.Reader containing audio data in FLAC format and returns a StreamSeeker,
 // which streams that audio. The Seek method will panic if r is not io.Seeker.
-//
-// Do not close the supplied Reader, instead, use the Close method of the returned
-// StreamSeekCloser when you want to release the resources.
-func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error) {
+func Decode(r io.Reader) (s beep.StreamSeeker, format beep.Format, err error) {
 	d := decoder{r: r}
-	defer func() { // hacky way to always close r if an error occurred
-		if closer, ok := d.r.(io.Closer); ok {
-			if err != nil {
-				closer.Close()
-			}
-		}
-	}()
 
 	rs, seeker := r.(io.ReadSeeker)
 	if seeker {
@@ -160,14 +150,4 @@ func (d *decoder) Seek(p int) error {
 	pos, err := d.stream.Seek(uint64(p))
 	d.pos = int(pos)
 	return err
-}
-
-func (d *decoder) Close() error {
-	if closer, ok := d.r.(io.Closer); ok {
-		err := closer.Close()
-		if err != nil {
-			return errors.Wrap(err, "flac")
-		}
-	}
-	return nil
 }

@@ -15,12 +15,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
 
 	streamer, format, err := mp3.Decode(f)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer streamer.Close()
 
 	sr := format.SampleRate * 2
 	speaker.Init(sr, sr.N(time.Second/10))

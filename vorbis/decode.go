@@ -14,18 +14,15 @@ const (
 	govorbisPrecision = 2
 )
 
-// Decode takes a ReadCloser containing audio data in ogg/vorbis format and returns a StreamSeekCloser,
+// Decode takes an io.Reader containing audio data in ogg/vorbis format and returns a StreamSeeker,
 // which streams that audio. The Seek method will panic if rc is not io.Seeker.
-//
-// Do not close the supplied ReadSeekCloser, instead, use the Close method of the returned
-// StreamSeekCloser when you want to release the resources.
-func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err error) {
+func Decode(r io.Reader) (s beep.StreamSeeker, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
 			err = errors.Wrap(err, "ogg/vorbis")
 		}
 	}()
-	d, err := oggvorbis.NewReader(rc)
+	d, err := oggvorbis.NewReader(r)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
@@ -41,14 +38,13 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 		Precision:   govorbisPrecision,
 	}
 
-	return &decoder{rc, d, make([]float32, d.Channels()), nil}, format, nil
+	return &decoder{d, make([]float32, d.Channels()), nil}, format, nil
 }
 
 type decoder struct {
-	closer io.Closer
-	d      *oggvorbis.Reader
-	tmp    []float32
-	err    error
+	d   *oggvorbis.Reader
+	tmp []float32
+	err error
 }
 
 func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
@@ -118,14 +114,6 @@ func (d *decoder) Position() int {
 
 func (d *decoder) Seek(p int) error {
 	err := d.d.SetPosition(int64(p))
-	if err != nil {
-		return errors.Wrap(err, "ogg/vorbis")
-	}
-	return nil
-}
-
-func (d *decoder) Close() error {
-	err := d.closer.Close()
 	if err != nil {
 		return errors.Wrap(err, "ogg/vorbis")
 	}

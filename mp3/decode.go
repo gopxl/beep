@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gopxl/beep"
 	gomp3 "github.com/hajimehoshi/go-mp3"
 	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep"
 )
 
 const (
@@ -16,18 +17,15 @@ const (
 	gomp3BytesPerFrame = gomp3NumChannels * gomp3Precision
 )
 
-// Decode takes a ReadCloser containing audio data in MP3 format and returns a StreamSeekCloser,
+// Decode takes an io.Reader containing audio data in MP3 format and returns a StreamSeeker,
 // which streams that audio. The Seek method will panic if rc is not io.Seeker.
-//
-// Do not close the supplied ReadSeekCloser, instead, use the Close method of the returned
-// StreamSeekCloser when you want to release the resources.
-func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err error) {
+func Decode(r io.Reader) (s beep.StreamSeeker, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
 			err = errors.Wrap(err, "mp3")
 		}
 	}()
-	d, err := gomp3.NewDecoder(rc)
+	d, err := gomp3.NewDecoder(r)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
@@ -36,15 +34,14 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 		NumChannels: gomp3NumChannels,
 		Precision:   gomp3Precision,
 	}
-	return &decoder{rc, d, format, 0, nil}, format, nil
+	return &decoder{d, format, 0, nil}, format, nil
 }
 
 type decoder struct {
-	closer io.Closer
-	d      *gomp3.Decoder
-	f      beep.Format
-	pos    int
-	err    error
+	d   *gomp3.Decoder
+	f   beep.Format
+	pos int
+	err error
 }
 
 func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
@@ -92,13 +89,5 @@ func (d *decoder) Seek(p int) error {
 		return errors.Wrap(err, "mp3")
 	}
 	d.pos = p * gomp3BytesPerFrame
-	return nil
-}
-
-func (d *decoder) Close() error {
-	err := d.closer.Close()
-	if err != nil {
-		return errors.Wrap(err, "mp3")
-	}
 	return nil
 }
