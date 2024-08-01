@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/gopxl/beep/internal/util"
 )
 
 // SampleRate is the number of samples per second.
@@ -63,11 +65,11 @@ func (f Format) DecodeUnsigned(p []byte) (sample [2]float64, n int) {
 func (f Format) encode(signed bool, p []byte, sample [2]float64) (n int) {
 	switch {
 	case f.NumChannels == 1:
-		x := norm((sample[0] + sample[1]) / 2)
+		x := util.Clamp((sample[0]+sample[1])/2, -1, 1)
 		p = p[encodeFloat(signed, f.Precision, p, x):]
 	case f.NumChannels >= 2:
 		for c := range sample {
-			x := norm(sample[c])
+			x := util.Clamp(sample[c], -1, 1)
 			p = p[encodeFloat(signed, f.Precision, p, x):]
 		}
 		for c := len(sample); c < f.NumChannels; c++ {
@@ -148,16 +150,6 @@ func signedToFloat(precision int, xUint64 uint64) float64 {
 
 func unsignedToFloat(precision int, xUint64 uint64) float64 {
 	return float64(xUint64)/(math.Exp2(float64(precision)*8))*2 - 1
-}
-
-func norm(x float64) float64 {
-	if x < -1 {
-		return -1
-	}
-	if x > +1 {
-		return +1
-	}
-	return x
 }
 
 // Buffer is a storage for audio data. You can think of it as a bytes.Buffer for audio samples.

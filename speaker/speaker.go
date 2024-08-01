@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/internal/util"
 )
 
 const channelCount = 2
@@ -186,12 +187,7 @@ func (s *sampleReader) Read(buf []byte) (n int, err error) {
 	for i := range s.buf[:ns] {
 		for c := range s.buf[i] {
 			val := s.buf[i][c]
-			if val < -1 {
-				val = -1
-			}
-			if val > +1 {
-				val = +1
-			}
+			val = util.Clamp(val, -1, 1)
 			valInt16 := int16(val * (1<<15 - 1))
 			low := byte(valInt16)
 			high := byte(valInt16 >> 8)

@@ -19,10 +19,7 @@ func (t *take) Stream(samples [][2]float64) (n int, ok bool) {
 	if t.remains <= 0 {
 		return 0, false
 	}
-	toStream := t.remains
-	if len(samples) < toStream {
-		toStream = len(samples)
-	}
+	toStream := min(t.remains, len(samples))
 	n, ok = t.s.Stream(samples[:toStream])
 	t.remains -= n
 	return n, ok
@@ -102,10 +99,7 @@ func Mix(s ...Streamer) Streamer {
 		var tmp [512][2]float64
 
 		for len(samples) > 0 {
-			toStream := len(tmp)
-			if toStream > len(samples) {
-				toStream = len(samples)
-			}
+			toStream := min(len(tmp), len(samples))
 
 			// clear the samples
 			for i := range samples[:toStream] {

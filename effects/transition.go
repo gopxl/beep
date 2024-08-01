@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/internal/util"
 )
 
 // TransitionFunc defines a function used in a transition to describe the progression curve
@@ -57,11 +58,7 @@ func (t *TransitionStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 	for i := 0; i < n; i++ {
 		pos := t.pos + i
 		progress := float64(pos) / float64(t.len)
-		if progress < 0 {
-			progress = 0
-		} else if progress > 1 {
-			progress = 1
-		}
+		progress = util.Clamp(progress, 0.0, 1.0)
 		value := t.transitionFunc(progress)
 		gain := t.startGain + (t.endGain-t.startGain)*value
 

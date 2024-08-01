@@ -7,8 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/gopxl/beep"
 	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep"
 )
 
 // Decode takes a Reader containing audio data in WAVE format and returns a StreamSeekCloser,
@@ -207,10 +208,9 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		return 0, false
 	}
 	bytesPerFrame := int(d.h.BytesPerFrame)
-	numBytes := int32(len(samples) * bytesPerFrame)
-	if numBytes > d.h.DataSize-d.pos {
-		numBytes = d.h.DataSize - d.pos
-	}
+	wantBytes := len(samples) * bytesPerFrame
+	availableBytes := int(d.h.DataSize - d.pos)
+	numBytes := min(wantBytes, availableBytes)
 	p := make([]byte, numBytes)
 	n, err := d.r.Read(p)
 	if err != nil && err != io.EOF {

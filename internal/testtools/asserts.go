@@ -22,10 +22,7 @@ func AssertStreamerHasCorrectReturnBehaviour(t *testing.T, s beep.Streamer, expe
 	buf := make([][2]float64, 512)
 	samplesLeft := expectedSamples - leaveUnreadInFirstCase
 	for samplesLeft > 0 {
-		toRead := len(buf)
-		if toRead > samplesLeft {
-			toRead = samplesLeft
-		}
+		toRead := min(len(buf), samplesLeft)
 		n, ok := s.Stream(buf[:toRead])
 		if !ok {
 			t.Fatalf("streamer returned !ok before it was expected to be drained")
