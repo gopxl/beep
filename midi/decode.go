@@ -37,9 +37,6 @@ type SoundFont struct {
 
 // Decode takes an io.Reader containing audio data in MIDI format and a SoundFont to synthesize the sounds
 // and returns a beep.StreamSeeker, which streams the audio.
-//
-// The io.Reader can be closed immediately after the call to midi.Decode because the data
-// will be loaded into memory.
 func Decode(r io.Reader, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeeker, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
