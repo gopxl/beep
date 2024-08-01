@@ -160,7 +160,7 @@ func main() {
 	if err != nil {
 		report(err)
 	}
-	streamer, format, err := mp3.Decode(f)
+	streamer, format, err := mp3.DecodeReadSeeker(f)
 	if err != nil {
 		report(err)
 	}
