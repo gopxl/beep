@@ -17,14 +17,8 @@ const (
 )
 
 // NewSoundFont reads a sound font containing instruments. A sound font is required in order to play MIDI files.
-//
-// NewSoundFont closes the supplied ReadCloser.
-func NewSoundFont(r io.ReadCloser) (*SoundFont, error) {
+func NewSoundFont(r io.Reader) (*SoundFont, error) {
 	sf, err := meltysynth.NewSoundFont(r)
-	if err != nil {
-		return nil, err
-	}
-	err = r.Close()
 	if err != nil {
 		return nil, err
 	}

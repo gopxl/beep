@@ -24,6 +24,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer soundFontFile.Close()
+
 	soundFont, err := midi.NewSoundFont(soundFontFile)
 	if err != nil {
 		log.Fatal(err)
@@ -34,6 +36,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer midiFile.Close()
+
 	s, format, err := midi.Decode(midiFile, soundFont, sampleRate)
 	if err != nil {
 		log.Fatal(err)
