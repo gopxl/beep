@@ -7,9 +7,7 @@ import "github.com/gopxl/beep"
 func Silence(num int) beep.Streamer {
 	if num < 0 {
 		return beep.StreamerFunc(func(samples [][2]float64) (m int, ok bool) {
-			for i := range samples {
-				samples[i] = [2]float64{}
-			}
+			clear(samples)
 			return len(samples), true
 		})
 	}
@@ -21,9 +19,7 @@ func Silence(num int) beep.Streamer {
 		if num < len(samples) {
 			samples = samples[:num]
 		}
-		for i := range samples {
-			samples[i] = [2]float64{}
-		}
+		clear(samples)
 		num -= len(samples)
 
 		return len(samples), true

@@ -100,10 +100,7 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	}
 
 	for len(samples) > 0 {
-		cn := len(d.bufLeft)
-		if cn > len(samples) {
-			cn = len(samples)
-		}
+		cn := min(len(d.bufLeft), len(samples))
 
 		d.seq.Render(d.bufLeft[:cn], d.bufRight[:cn])
 		for i := 0; i < cn; i++ {
