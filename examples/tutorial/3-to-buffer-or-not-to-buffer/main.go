@@ -26,7 +26,7 @@ func main() {
 
 	buffer := beep.NewBuffer(format)
 	buffer.Append(streamer)
-	streamer.Close()
+	f.Close()
 
 	for {
 		fmt.Print("Press [ENTER] to fire a gunshot! ")

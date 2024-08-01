@@ -17,14 +17,8 @@ const (
 )
 
 // NewSoundFont reads a sound font containing instruments. A sound font is required in order to play MIDI files.
-//
-// NewSoundFont closes the supplied ReadCloser.
-func NewSoundFont(r io.ReadCloser) (*SoundFont, error) {
+func NewSoundFont(r io.Reader) (*SoundFont, error) {
 	sf, err := meltysynth.NewSoundFont(r)
-	if err != nil {
-		return nil, err
-	}
-	err = r.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -35,11 +29,9 @@ type SoundFont struct {
 	sf *meltysynth.SoundFont
 }
 
-// Decode takes a ReadCloser containing audio data in MIDI format and a SoundFont to synthesize the sounds
+// Decode takes an io.Reader containing audio data in MIDI format and a SoundFont to synthesize the sounds
 // and returns a beep.StreamSeeker, which streams the audio.
-//
-// Decode closes the supplied ReadCloser.
-func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeeker, format beep.Format, err error) {
+func Decode(r io.Reader, sf *SoundFont, sampleRate beep.SampleRate) (s beep.StreamSeeker, format beep.Format, err error) {
 	defer func() {
 		if err != nil {
 			err = errors.Wrap(err, "midi")
@@ -52,11 +44,7 @@ func Decode(rc io.ReadCloser, sf *SoundFont, sampleRate beep.SampleRate) (s beep
 		return nil, beep.Format{}, err
 	}
 
-	mf, err := meltysynth.NewMidiFile(rc)
-	if err != nil {
-		return nil, beep.Format{}, err
-	}
-	err = rc.Close()
+	mf, err := meltysynth.NewMidiFile(r)
 	if err != nil {
 		return nil, beep.Format{}, err
 	}

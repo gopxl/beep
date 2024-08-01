@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/mp3"
@@ -157,15 +158,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s song.mp3\n", os.Args[0])
 		os.Exit(1)
 	}
+
 	f, err := os.Open(os.Args[1])
 	if err != nil {
 		report(err)
 	}
+	defer f.Close()
+
 	streamer, format, err := mp3.Decode(f)
 	if err != nil {
 		report(err)
 	}
-	defer streamer.Close()
 
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/30))
 

@@ -62,25 +62,6 @@ type StreamSeeker interface {
 	Seek(p int) error
 }
 
-// StreamCloser is a Streamer streaming from a resource which needs to be released, such as a file
-// or a network connection.
-type StreamCloser interface {
-	Streamer
-
-	// Close closes the Streamer and releases it's resources. Streamer will no longer stream any
-	// samples.
-	Close() error
-}
-
-// StreamSeekCloser is a union of StreamSeeker and StreamCloser.
-type StreamSeekCloser interface {
-	Streamer
-	Len() int
-	Position() int
-	Seek(p int) error
-	Close() error
-}
-
 // StreamerFunc is a Streamer created by simply wrapping a streaming function (usually a closure,
 // which encloses a time tracking variable). This sometimes simplifies creating new streamers.
 //
