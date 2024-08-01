@@ -12,9 +12,7 @@ func Silence(num int) Streamer {
 		if 0 < num && num < len(samples) {
 			samples = samples[:num]
 		}
-		for i := range samples {
-			samples[i] = [2]float64{}
-		}
+		clear(samples)
 		if num > 0 {
 			num -= len(samples)
 		}

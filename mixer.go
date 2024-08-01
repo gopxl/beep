@@ -30,9 +30,7 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 		toStream := min(len(tmp), len(samples))
 
 		// clear the samples
-		for i := range samples[:toStream] {
-			samples[i] = [2]float64{}
-		}
+		clear(samples[:toStream])
 
 		for si := 0; si < len(m.streamers); si++ {
 			// mix the stream

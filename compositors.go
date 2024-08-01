@@ -102,9 +102,7 @@ func Mix(s ...Streamer) Streamer {
 			toStream := min(len(tmp), len(samples))
 
 			// clear the samples
-			for i := range samples[:toStream] {
-				samples[i] = [2]float64{}
-			}
+			clear(samples[:toStream])
 
 			snMax := 0 // max number of streamed samples in this iteration
 			for _, st := range s {
