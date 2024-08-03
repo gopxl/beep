@@ -127,10 +127,10 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 					}
 
 					if actual[i][0] <= data[i][0]-delta || actual[i][0] >= data[i][0]+delta {
-						t.Fatalf("encoded & decoded sample doesn't match orginal. expected: %v, actual: %v", data[i][0], actual[i][0])
+						t.Fatalf("encoded & decoded sample doesn't match original. expected: %v, actual: %v", data[i][0], actual[i][0])
 					}
 					if actual[i][1] <= data[i][1]-delta || actual[i][1] >= data[i][1]+delta {
-						t.Fatalf("encoded & decoded sample doesn't match orginal. expected: %v, actual: %v", data[i][1], actual[i][1])
+						t.Fatalf("encoded & decoded sample doesn't match original. expected: %v, actual: %v", data[i][1], actual[i][1])
 					}
 				}
 			})
