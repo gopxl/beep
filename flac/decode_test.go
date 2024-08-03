@@ -16,7 +16,7 @@ import (
 )
 
 func TestDecoder_ReturnBehaviour(t *testing.T) {
-	f, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.flac"))
+	f, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples_ffmpeg.flac"))
 	assert.NoError(t, err)
 	defer f.Close()
 
@@ -27,12 +27,38 @@ func TestDecoder_ReturnBehaviour(t *testing.T) {
 	testtools.AssertStreamerHasCorrectReturnBehaviour(t, s, s.Len())
 }
 
-func TestDecoder_Seek(t *testing.T) {
-	flacFile, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.flac"))
+func TestDecoder_Stream(t *testing.T) {
+	flacFile, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples_ffmpeg.flac"))
 	assert.NoError(t, err)
 	defer flacFile.Close()
 
-	// Use WAV file as reference
+	// Use WAV file as reference. Since both FLAC and WAV are lossless, comparing
+	// the samples should be possible (allowing for some floating point errors).
+	wavFile, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.wav"))
+	assert.NoError(t, err)
+	defer wavFile.Close()
+
+	flacStream, _, err := flac.Decode(flacFile)
+	assert.NoError(t, err)
+
+	wavStream, _, err := wav.Decode(wavFile)
+	assert.NoError(t, err)
+
+	assert.Equal(t, wavStream.Len(), flacStream.Len())
+
+	wavSamples := testtools.Collect(wavStream)
+	flacSamples := testtools.Collect(flacStream)
+
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
+}
+
+func TestDecoder_Seek(t *testing.T) {
+	flacFile, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples_ffmpeg.flac"))
+	assert.NoError(t, err)
+	defer flacFile.Close()
+
+	// Use WAV file as reference. Since both FLAC and WAV are lossless, comparing
+	// the samples should be possible (allowing for some floating point errors).
 	wavFile, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.wav"))
 	assert.NoError(t, err)
 	defer wavFile.Close()
@@ -63,7 +89,7 @@ func TestDecoder_Seek(t *testing.T) {
 
 	wavSamples := testtools.CollectNum(100, wavStream)
 	flacSamples := testtools.CollectNum(100, flacStream)
-	assert.Equal(t, wavSamples, flacSamples)
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
 
 	// Test middle of 2nd frame
 	seekPos = (int(frameStarts[1]) + int(frameStarts[2])) / 2
@@ -76,7 +102,7 @@ func TestDecoder_Seek(t *testing.T) {
 
 	wavSamples = testtools.CollectNum(100, wavStream)
 	flacSamples = testtools.CollectNum(100, flacStream)
-	assert.Equal(t, wavSamples, flacSamples)
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
 
 	// Test end of 2nd frame
 	seekPos = int(frameStarts[2]) - 1
@@ -89,7 +115,7 @@ func TestDecoder_Seek(t *testing.T) {
 
 	wavSamples = testtools.CollectNum(100, wavStream)
 	flacSamples = testtools.CollectNum(100, flacStream)
-	assert.Equal(t, wavSamples, flacSamples)
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
 }
 
 func getFlacFrameStartPositions(r io.Reader) ([]uint64, error) {

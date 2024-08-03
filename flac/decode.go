@@ -157,7 +157,19 @@ func (d *decoder) Seek(p int) error {
 	}
 
 	pos, err := d.stream.Seek(uint64(p))
-	d.pos = int(pos)
+	if err != nil {
+		return errors.Wrap(err, "flac")
+	}
+
+	toDiscard := p - int(pos)
+	err = d.refill()
+	if err != nil {
+		return err
+	}
+	d.buf = d.buf[toDiscard:]
+
+	d.pos = p
+
 	return err
 }
 
