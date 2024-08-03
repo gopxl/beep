@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gopxl/beep"
-	"github.com/gopxl/beep/generators"
+	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/generators"
 )
 
 type bufferFormatTestCase struct {

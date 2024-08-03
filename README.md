@@ -10,7 +10,7 @@
 A little package that brings sound to any Go application. Suitable for playback and audio-processing.
 
 ```
-go get -u github.com/gopxl/beep
+go get -u github.com/gopxl/beep/v2
 ```
 
 ## Features

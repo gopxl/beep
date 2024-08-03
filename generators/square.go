@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/v2"
 )
 
 type squareGenerator struct {

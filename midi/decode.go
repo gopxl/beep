@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samhocevar/go-meltysynth/meltysynth"
 
-	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/v2"
 )
 
 const (
