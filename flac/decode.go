@@ -151,7 +151,6 @@ func (d *decoder) Position() int {
 	return d.pos
 }
 
-// p represents flac sample num perhaps?
 func (d *decoder) Seek(p int) error {
 	if !d.seekEnabled {
 		return errors.New("flac.decoder.Seek: not enabled")
