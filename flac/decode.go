@@ -103,28 +103,28 @@ func (d *decoder) decodeFrameRangeInto(frame *frame.Frame, start, num int, into 
 	switch {
 	case bps == 8 && numChannels == 1:
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(int8(frame.Subframes[0].Samples[start+i])) * q
+			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
 			into[i][1] = into[i][0]
 		}
 	case bps == 16 && numChannels == 1:
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(int16(frame.Subframes[0].Samples[start+i])) * q
+			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
 			into[i][1] = into[i][0]
 		}
 	case bps == 24 && numChannels == 1:
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(int32(frame.Subframes[0].Samples[start+i])) * q
+			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
 			into[i][1] = into[i][0]
 		}
 	case bps == 8 && numChannels >= 2:
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(int8(frame.Subframes[0].Samples[start+i])) * q
-			into[i][1] = float64(int8(frame.Subframes[1].Samples[start+i])) * q
+			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
+			into[i][1] = float64(frame.Subframes[1].Samples[start+i]) * q
 		}
 	case bps == 16 && numChannels >= 2:
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(int16(frame.Subframes[0].Samples[start+i])) * q
-			into[i][1] = float64(int16(frame.Subframes[1].Samples[start+i])) * q
+			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
+			into[i][1] = float64(frame.Subframes[1].Samples[start+i]) * q
 		}
 	case bps == 24 && numChannels >= 2:
 		for i := 0; i < num; i++ {
