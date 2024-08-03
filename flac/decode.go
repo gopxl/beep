@@ -1,7 +1,6 @@
 package flac
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/mewkiz/flac"
@@ -100,39 +99,21 @@ func (d *decoder) decodeFrameRangeInto(frame *frame.Frame, start, num int, into 
 	numChannels := d.stream.Info.NChannels
 	s := 1 << (bps - 1)
 	q := 1 / float64(s)
-	switch {
-	case bps == 8 && numChannels == 1:
+
+	if numChannels == 1 {
+		samples1 := frame.Subframes[0].Samples[start:]
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = into[i][0]
+			v := float64(samples1[i]) * q
+			into[i][0] = v
+			into[i][1] = v
 		}
-	case bps == 16 && numChannels == 1:
+	} else {
+		samples1 := frame.Subframes[0].Samples[start:]
+		samples2 := frame.Subframes[1].Samples[start:]
 		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = into[i][0]
+			into[i][0] = float64(samples1[i]) * q
+			into[i][1] = float64(samples2[i]) * q
 		}
-	case bps == 24 && numChannels == 1:
-		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = into[i][0]
-		}
-	case bps == 8 && numChannels >= 2:
-		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = float64(frame.Subframes[1].Samples[start+i]) * q
-		}
-	case bps == 16 && numChannels >= 2:
-		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = float64(frame.Subframes[1].Samples[start+i]) * q
-		}
-	case bps == 24 && numChannels >= 2:
-		for i := 0; i < num; i++ {
-			into[i][0] = float64(frame.Subframes[0].Samples[start+i]) * q
-			into[i][1] = float64(frame.Subframes[1].Samples[start+i]) * q
-		}
-	default:
-		panic(fmt.Errorf("flac: support for %d bits-per-sample and %d channels combination not yet implemented", bps, numChannels))
 	}
 }
 
