@@ -1,6 +1,7 @@
 package flac_test
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"os"
@@ -44,7 +45,8 @@ func TestDecoder_Stream(t *testing.T) {
 	wavStream, _, err := wav.Decode(wavFile)
 	assert.NoError(t, err)
 
-	assert.Equal(t, wavStream.Len(), flacStream.Len())
+	assert.Equal(t, 22050, wavStream.Len())
+	assert.Equal(t, 22050, flacStream.Len())
 
 	wavSamples := testtools.Collect(wavStream)
 	flacSamples := testtools.Collect(flacStream)
@@ -138,4 +140,24 @@ func getFlacFrameStartPositions(r io.Reader) ([]uint64, error) {
 	}
 
 	return frameStarts, nil
+}
+
+func BenchmarkDecoder_Stream(b *testing.B) {
+	// Load the file into memory, so the disk performance doesn't impact the benchmark.
+	data, err := os.ReadFile(testtools.TestFilePath("valid_44100hz_22050_samples_ffmpeg.flac"))
+	assert.NoError(b, err)
+
+	r := bytes.NewReader(data)
+
+	b.Run("test", func(b *testing.B) {
+		s, _, err := flac.Decode(r)
+		assert.NoError(b, err)
+
+		samples := testtools.Collect(s)
+		assert.Equal(b, 22050, len(samples))
+
+		// Reset for next run.
+		_, err = r.Seek(0, io.SeekStart)
+		assert.NoError(b, err)
+	})
 }
