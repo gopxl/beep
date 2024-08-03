@@ -1,4 +1,4 @@
-module github.com/gopxl/beep
+module github.com/gopxl/beep/v2
 
 go 1.21
 

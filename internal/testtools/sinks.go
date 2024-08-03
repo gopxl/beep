@@ -1,6 +1,6 @@
 package testtools
 
-import "github.com/gopxl/beep"
+import "github.com/gopxl/beep/v2"
 
 // Collect drains Streamer s and returns all the samples it streamed.
 func Collect(s beep.Streamer) [][2]float64 {

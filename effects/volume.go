@@ -3,7 +3,7 @@ package effects
 import (
 	"math"
 
-	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/v2"
 )
 
 // Volume adjusts the volume of the wrapped Streamer in a human-natural way. Human's perception of
