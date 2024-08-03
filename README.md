@@ -4,7 +4,7 @@
 [![Go build status](https://github.com/gopxl/beep/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/gopxl/beep/actions/workflows/go.yml?query=branch%3Amain)
 [![Coverage Status](https://coveralls.io/repos/github/gopxl/beep/badge.svg?branch=main)](https://coveralls.io/github/gopxl/beep?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gopxl/beep/v2)](https://goreportcard.com/report/github.com/gopxl/beep/v2)
-[![Discord Chat](https://img.shields.io/discord/1158461233121468496)](https://discord.gg/erpa32cB)
+[![Discord Chat](https://img.shields.io/discord/1158461233121468496)](https://discord.gg/hPBTTXGDU3)
 
 
 A little package that brings sound to any Go application. Suitable for playback and audio-processing.
