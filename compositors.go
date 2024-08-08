@@ -1,5 +1,10 @@
 package beep
 
+import (
+	"fmt"
+	"math"
+)
+
 // Take returns a Streamer which streams at most num samples from s.
 //
 // The returned Streamer propagates s's errors through Err.
@@ -29,42 +34,105 @@ func (t *take) Err() error {
 	return t.s.Err()
 }
 
-// Loop takes a StreamSeeker and plays it count times. If count is negative, s is looped infinitely.
+type LoopOption func(opts *loop)
+
+// LoopStart sets the position in the source stream to which it returns (using Seek())
+// after reaching the end of the stream or the position set using LoopEnd. The samples
+// before this position are played once before the loop begins.
+func LoopStart(pos int) LoopOption {
+	if pos < 0 {
+		panic("invalid argument to LoopStart; pos cannot be negative")
+	}
+	return func(loop *loop) {
+		loop.start = pos
+	}
+}
+
+// LoopEnd sets the position (exclusive) in the source stream up to which the stream plays
+// before returning (seeking) back to the start of the stream or the position set by LoopStart.
+// The samples after this position are played once after looping completes.
+func LoopEnd(pos int) LoopOption {
+	if pos < 0 {
+		panic("invalid argument to LoopEnd; pos cannot be negative")
+	}
+	return func(loop *loop) {
+		loop.end = pos
+	}
+}
+
+// LoopBetween sets both the LoopStart and LoopEnd positions simultaneously, specifying
+// the section of the stream that will be looped.
+func LoopBetween(start, end int) LoopOption {
+	return func(opts *loop) {
+		LoopStart(start)(opts)
+		LoopEnd(end)(opts)
+	}
+}
+
+// Loop takes a StreamSeeker and plays it the specified number of times. If count is negative,
+// s loops indefinitely. LoopStart, LoopEnd, or LoopBetween can be used to define a specific
+// section of the stream to loop. The samples before the start and after the end positions are
+// played once before and after the looping section, respectively.
 //
-// The returned Streamer propagates s's errors.
-func Loop(count int, s StreamSeeker) Streamer {
-	return &loop{
+// The returned Streamer propagates any errors from s.
+func Loop(count int, s StreamSeeker, opts ...LoopOption) Streamer {
+	l := &loop{
 		s:       s,
 		remains: count,
+		start:   0,
+		end:     math.MaxInt,
 	}
+	for _, opt := range opts {
+		opt(l)
+	}
+
+	n := s.Len()
+	if l.start >= n {
+		panic(fmt.Sprintf("invalid argument to Loop; start position %d is bigger than the length %d of the source streamer", l.start, n))
+	}
+	if l.start > l.end {
+		panic(fmt.Sprintf("invalid argument to Loop; start position %d must be smaller than the end position %d", l.start, l.end))
+	}
+	l.end = min(l.end, n)
+
+	return l
 }
 
 type loop struct {
 	s       StreamSeeker
 	remains int
+	start   int // start position in the stream where looping begins. Samples before this position are played once before the first loop.
+	end     int // end position in the stream where looping ends and restarts from `start`.
 }
 
 func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
-	if l.remains == 0 || l.s.Err() != nil {
+	if l.s.Err() != nil {
 		return 0, false
 	}
 	for len(samples) > 0 {
-		sn, sok := l.s.Stream(samples)
-		if !sok {
-			if l.remains > 0 {
-				l.remains--
+		toStream := len(samples)
+		if l.remains != 0 {
+			samplesUntilEnd := l.end - l.s.Position()
+			if samplesUntilEnd == 0 {
+				// End of loop, reset the position and decrease the loop count.
+				if l.remains > 0 {
+					l.remains--
+				}
+				if err := l.s.Seek(l.start); err != nil {
+					return n, true
+				}
+				continue
 			}
-			if l.remains == 0 {
-				break
-			}
-			err := l.s.Seek(0)
-			if err != nil {
-				return n, true
-			}
-			continue
+			// Stream only up to the end of the loop.
+			toStream = min(samplesUntilEnd, toStream)
+		}
+
+		sn, sok := l.s.Stream(samples[:toStream])
+		n += sn
+		if sn < toStream || !sok {
+			return n, n > 0
 		}
 		samples = samples[sn:]
-		n += sn
 	}
 	return n, true
 }
