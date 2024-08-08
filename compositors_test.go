@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gopxl/beep/v2"
 	"github.com/gopxl/beep/v2/internal/testtools"
 )
@@ -25,21 +27,45 @@ func TestTake(t *testing.T) {
 }
 
 func TestLoop(t *testing.T) {
-	for i := 0; i < 7; i++ {
-		for n := 0; n < 5; n++ {
-			s, data := testtools.RandomDataStreamer(10)
+	// Test no loop.
+	s, data := testtools.NewSequentialDataStreamer(5)
+	got := testtools.Collect(beep.Loop(0, s))
+	assert.Equal(t, data, got)
 
-			var want [][2]float64
-			for j := 0; j < n; j++ {
-				want = append(want, data...)
-			}
-			got := testtools.Collect(beep.Loop(n, s))
+	// Test loop once.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.Collect(beep.Loop(1, s))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}}, got)
 
-			if !reflect.DeepEqual(want, got) {
-				t.Error("Loop not working correctly")
-			}
-		}
-	}
+	// Test loop twice.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.Collect(beep.Loop(2, s))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}}, got)
+
+	// Loop indefinitely.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.CollectNum(16, beep.Loop(-1, s))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {0, 0}}, got)
+
+	// Test loop from start position.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.Collect(beep.Loop(2, s, beep.LoopStart(2)))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {2, 2}, {3, 3}, {4, 4}, {2, 2}, {3, 3}, {4, 4}}, got)
+
+	// Test loop with end position.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.Collect(beep.Loop(2, s, beep.LoopEnd(4)))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}}, got)
+
+	// Test loop with start and end position.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.Collect(beep.Loop(2, s, beep.LoopBetween(2, 4)))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {4, 4}}, got)
+
+	// Loop indefinitely with both start and end position.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	got = testtools.CollectNum(10, beep.Loop(-1, s, beep.LoopBetween(2, 4)))
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {2, 2}, {3, 3}}, got)
 }
 
 func TestSeq(t *testing.T) {

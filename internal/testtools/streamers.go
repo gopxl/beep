@@ -10,10 +10,28 @@ import (
 func RandomDataStreamer(numSamples int) (s beep.StreamSeeker, data [][2]float64) {
 	data = make([][2]float64, numSamples)
 	for i := range data {
-		data[i][0] = rand.Float64()*2 - 1
-		data[i][1] = rand.Float64()*2 - 1
+		data[i] = [2]float64{
+			rand.Float64()*2 - 1,
+			rand.Float64()*2 - 1,
+		}
 	}
-	return &dataStreamer{data, 0}, data
+	return NewDataStreamer(data), data
+}
+
+// NewSequentialDataStreamer creates a streamer which streams samples with values {0, 0}, {1, 1}, {2, 2}, etc.
+// Note that this aren't valid sample values in the range of [-1, 1], but it can nonetheless
+// be useful for testing.
+func NewSequentialDataStreamer(numSamples int) (s beep.StreamSeeker, data [][2]float64) {
+	data = make([][2]float64, numSamples)
+	for i := range data {
+		data[i] = [2]float64{float64(i), float64(i)}
+	}
+	return NewDataStreamer(data), data
+}
+
+// NewDataStreamer creates a streamer which streams the given data.
+func NewDataStreamer(data [][2]float64) (s beep.StreamSeeker) {
+	return &dataStreamer{data, 0}
 }
 
 type dataStreamer struct {
