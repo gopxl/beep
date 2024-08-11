@@ -41,6 +41,7 @@ func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error
 	if err != nil {
 		return nil, beep.Format{}, errors.Wrap(err, "flac")
 	}
+	d.hasFixedBlockSize = d.frame.HasFixedBlockSize
 
 	format = beep.Format{
 		SampleRate:  beep.SampleRate(d.stream.Info.SampleRate),
@@ -57,6 +58,8 @@ type decoder struct {
 	posInFrame  int
 	err         error
 	seekEnabled bool
+
+	hasFixedBlockSize bool
 }
 
 func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
@@ -126,12 +129,51 @@ func (d *decoder) Len() int {
 }
 
 func (d *decoder) Position() int {
+	if d.frame == nil {
+		return d.Len()
+	}
+
+	// Temporary workaround until https://github.com/mewkiz/flac/pull/73 is resolved.
+	if d.hasFixedBlockSize {
+		return int(d.frame.Num)*int(d.stream.Info.BlockSizeMax) + d.posInFrame
+	}
+
 	return int(d.frame.SampleNumber()) + d.posInFrame
 }
 
 func (d *decoder) Seek(p int) error {
 	if !d.seekEnabled {
 		return errors.New("flac.decoder.Seek: not enabled")
+	}
+
+	// Temporary workaround until https://github.com/mewkiz/flac/pull/73 is resolved.
+	// frame.SampleNumber() doesn't work for the last frame of a fixed block size stream
+	// with the result that seeking to that frame doesn't work either. Therefore, if such
+	// a seek is requested, we seek to one of the frames before it and consume until the
+	// desired position is reached.
+	if d.hasFixedBlockSize {
+		lastFrameStartLowerBound := d.Len() - int(d.stream.Info.BlockSizeMax)
+		if p >= lastFrameStartLowerBound {
+			// Seek to & consume an earlier frame.
+			_, err := d.stream.Seek(uint64(lastFrameStartLowerBound - 1))
+			if err != nil {
+				return errors.Wrap(err, "flac")
+			}
+			for {
+				d.frame, err = d.stream.ParseNext()
+				if err != nil {
+					return errors.Wrap(err, "flac")
+				}
+				// Calculate the frame start position manually, because this doesn't
+				// work for the last frame.
+				frameStart := d.frame.Num * uint64(d.stream.Info.BlockSizeMax)
+				if frameStart+uint64(d.frame.BlockSize) >= d.stream.Info.NSamples {
+					// Found the desired frame.
+					d.posInFrame = p - int(frameStart)
+					return nil
+				}
+			}
+		}
 	}
 
 	// d.stream.Seek() doesn't seek to the exact position p, instead
@@ -148,7 +190,7 @@ func (d *decoder) Seek(p int) error {
 		return errors.Wrap(err, "flac")
 	}
 
-	return err
+	return nil
 }
 
 func (d *decoder) Close() error {

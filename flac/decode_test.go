@@ -118,6 +118,32 @@ func TestDecoder_Seek(t *testing.T) {
 	wavSamples = testtools.CollectNum(100, wavStream)
 	flacSamples = testtools.CollectNum(100, flacStream)
 	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
+
+	// Test end of stream.
+	seekPos = wavStream.Len() - 1
+	err = wavStream.Seek(seekPos)
+	assert.NoError(t, err)
+	assert.Equal(t, seekPos, wavStream.Position())
+	err = flacStream.Seek(seekPos)
+	assert.NoError(t, err)
+	assert.Equal(t, seekPos, flacStream.Position())
+
+	wavSamples = testtools.CollectNum(100, wavStream)
+	flacSamples = testtools.CollectNum(100, flacStream)
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
+
+	// Test after end of stream.
+	seekPos = wavStream.Len()
+	err = wavStream.Seek(seekPos)
+	assert.NoError(t, err)
+	assert.Equal(t, seekPos, wavStream.Position())
+	err = flacStream.Seek(seekPos)
+	assert.NoError(t, err)
+	assert.Equal(t, seekPos, flacStream.Position())
+
+	wavSamples = testtools.CollectNum(100, wavStream)
+	flacSamples = testtools.CollectNum(100, flacStream)
+	testtools.AssertSamplesEqual(t, wavSamples, flacSamples)
 }
 
 func getFlacFrameStartPositions(r io.Reader) ([]uint64, error) {
