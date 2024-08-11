@@ -65,14 +65,101 @@ func (ds *dataStreamer) Seek(p int) error {
 	return nil
 }
 
+// NewErrorStreamer returns a streamer which errors immediately with the given err.
+func NewErrorStreamer(err error) beep.StreamSeeker {
+	return &ErrorStreamer{
+		s: beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
+			panic("unreachable")
+		}),
+		samplesLeft: 0,
+		Error:       err,
+	}
+}
+
+// NewDelayedErrorStreamer wraps streamer s but returns an error after numSamples have been streamed.
+func NewDelayedErrorStreamer(s beep.Streamer, numSamples int, err error) beep.StreamSeeker {
+	return &ErrorStreamer{
+		s:           s,
+		samplesLeft: numSamples,
+		Error:       err,
+	}
+}
+
 type ErrorStreamer struct {
-	Error error
+	s           beep.Streamer
+	samplesLeft int
+	Error       error
 }
 
-func (e ErrorStreamer) Stream(samples [][2]float64) (n int, ok bool) {
-	return 0, false
+func (e *ErrorStreamer) Stream(samples [][2]float64) (n int, ok bool) {
+	if e.samplesLeft == 0 {
+		return 0, false
+	}
+
+	toStream := min(e.samplesLeft, len(samples))
+	n, ok = e.s.Stream(samples[:toStream])
+	e.samplesLeft -= n
+
+	return n, ok
 }
 
-func (e ErrorStreamer) Err() error {
-	return e.Error
+func (e *ErrorStreamer) Err() error {
+	if e.samplesLeft == 0 {
+		return e.Error
+	} else {
+		return e.s.Err()
+	}
+}
+
+func (e *ErrorStreamer) Seek(p int) error {
+	if s, ok := e.s.(beep.StreamSeeker); ok {
+		return s.Seek(p)
+	}
+	panic("source streamer is not a beep.StreamSeeker")
+}
+
+func (e *ErrorStreamer) Len() int {
+	if s, ok := e.s.(beep.StreamSeeker); ok {
+		return s.Len()
+	}
+	panic("source streamer is not a beep.StreamSeeker")
+}
+
+func (e *ErrorStreamer) Position() int {
+	if s, ok := e.s.(beep.StreamSeeker); ok {
+		return s.Position()
+	}
+	panic("source streamer is not a beep.StreamSeeker")
+}
+
+func NewSeekErrorStreamer(s beep.StreamSeeker, err error) *SeekErrorStreamer {
+	return &SeekErrorStreamer{
+		s:   s,
+		err: err,
+	}
+}
+
+type SeekErrorStreamer struct {
+	s   beep.StreamSeeker
+	err error
+}
+
+func (s *SeekErrorStreamer) Stream(samples [][2]float64) (n int, ok bool) {
+	return s.s.Stream(samples)
+}
+
+func (s *SeekErrorStreamer) Err() error {
+	return s.s.Err()
+}
+
+func (s *SeekErrorStreamer) Len() int {
+	return s.s.Len()
+}
+
+func (s *SeekErrorStreamer) Position() int {
+	return s.s.Position()
+}
+
+func (s *SeekErrorStreamer) Seek(p int) error {
+	return s.err
 }

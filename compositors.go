@@ -77,10 +77,11 @@ func LoopBetween(start, end int) LoopOption {
 // The returned Streamer propagates any errors from s.
 func Loop(count int, s StreamSeeker, opts ...LoopOption) Streamer {
 	l := &loop{
-		s:       s,
-		remains: count,
-		start:   0,
-		end:     math.MaxInt,
+		s:        s,
+		remains:  count,
+		finished: count == 0,
+		start:    0,
+		end:      math.MaxInt,
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -99,26 +100,29 @@ func Loop(count int, s StreamSeeker, opts ...LoopOption) Streamer {
 }
 
 type loop struct {
-	s       StreamSeeker
-	remains int
-	start   int // start position in the stream where looping begins. Samples before this position are played once before the first loop.
-	end     int // end position in the stream where looping ends and restarts from `start`.
+	s        StreamSeeker
+	remains  int // number of seeks remaining.
+	finished bool
+	start    int // start position in the stream where looping begins. Samples before this position are played once before the first loop.
+	end      int // end position in the stream where looping ends and restarts from `start`.
+	err      error
 }
 
 func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
-	if l.s.Err() != nil {
+	if l.finished || l.err != nil {
 		return 0, false
 	}
 	for len(samples) > 0 {
 		toStream := len(samples)
 		if l.remains != 0 {
 			samplesUntilEnd := l.end - l.s.Position()
-			if samplesUntilEnd == 0 {
+			if samplesUntilEnd <= 0 {
 				// End of loop, reset the position and decrease the loop count.
 				if l.remains > 0 {
 					l.remains--
 				}
 				if err := l.s.Seek(l.start); err != nil {
+					l.err = err
 					return n, true
 				}
 				continue
@@ -130,6 +134,8 @@ func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
 		sn, sok := l.s.Stream(samples[:toStream])
 		n += sn
 		if sn < toStream || !sok {
+			l.err = l.s.Err()
+			l.finished = true
 			return n, n > 0
 		}
 		samples = samples[sn:]
@@ -138,7 +144,7 @@ func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
 }
 
 func (l *loop) Err() error {
-	return l.s.Err()
+	return l.err
 }
 
 // Seq takes zero or more Streamers and returns a Streamer which streams them one by one without pauses.

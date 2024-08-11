@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gopxl/beep/v2"
@@ -28,9 +29,10 @@ func TestTake(t *testing.T) {
 
 func TestLoop(t *testing.T) {
 	// Test no loop.
-	s, data := testtools.NewSequentialDataStreamer(5)
+	// For backwards compatibility, a loop count of 0 means that nothing at all will be played.
+	s, _ := testtools.NewSequentialDataStreamer(5)
 	got := testtools.Collect(beep.Loop(0, s))
-	assert.Equal(t, data, got)
+	assert.Empty(t, got)
 
 	// Test loop once.
 	s, _ = testtools.NewSequentialDataStreamer(5)
@@ -66,6 +68,52 @@ func TestLoop(t *testing.T) {
 	s, _ = testtools.NewSequentialDataStreamer(5)
 	got = testtools.CollectNum(10, beep.Loop(-1, s, beep.LoopBetween(2, 4)))
 	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {2, 2}, {3, 3}, {2, 2}, {3, 3}}, got)
+
+	// Test streaming from the middle of the loops.
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	l := beep.Loop(2, s, beep.LoopBetween(2, 4)) // 0, 1, 2, 3, 2, 3, 2, 3
+	// First stream to the middle of a loop.
+	buf := make([][2]float64, 3)
+	if n, ok := l.Stream(buf); n != 3 || !ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 5, n, true, ok)
+	}
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}}, buf)
+	// Then stream starting at the middle of the loop.
+	if n, ok := l.Stream(buf); n != 3 || !ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 5, n, true, ok)
+	}
+	assert.Equal(t, [][2]float64{{3, 3}, {2, 2}, {3, 3}}, buf)
+
+	// Test error handling in middle of loop.
+	expectedErr := errors.New("expected error")
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	s = testtools.NewDelayedErrorStreamer(s, 5, expectedErr)
+	l = beep.Loop(3, s, beep.LoopBetween(2, 4)) // 0, 1, 2, 3, 2, 3, 2, 3
+	buf = make([][2]float64, 10)
+	if n, ok := l.Stream(buf); n != 5 || !ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 5, n, true, ok)
+	}
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {2, 2}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}, buf)
+	assert.Equal(t, expectedErr, l.Err())
+	if n, ok := l.Stream(buf); n != 0 || ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 0, n, false, ok)
+	}
+	assert.Equal(t, expectedErr, l.Err())
+
+	// Test error handling during call to Seek().
+	s, _ = testtools.NewSequentialDataStreamer(5)
+	s = testtools.NewSeekErrorStreamer(s, expectedErr)
+	l = beep.Loop(3, s, beep.LoopBetween(2, 4)) // 0, 1, 2, 3, [error]
+	buf = make([][2]float64, 10)
+	if n, ok := l.Stream(buf); n != 4 || !ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 4, n, true, ok)
+	}
+	assert.Equal(t, [][2]float64{{0, 0}, {1, 1}, {2, 2}, {3, 3}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}}, buf)
+	assert.Equal(t, expectedErr, l.Err())
+	if n, ok := l.Stream(buf); n != 0 || ok {
+		t.Fatalf("want n %d got %d, want ok %t got %t", 0, n, false, ok)
+	}
+	assert.Equal(t, expectedErr, l.Err())
 }
 
 func TestSeq(t *testing.T) {

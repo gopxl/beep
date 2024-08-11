@@ -48,6 +48,6 @@ func TestCtrl_PropagatesErrors(t *testing.T) {
 	assert.NoError(t, ctrl.Err())
 
 	err := errors.New("oh no")
-	ctrl.Streamer = testtools.ErrorStreamer{Error: err}
+	ctrl.Streamer = testtools.NewErrorStreamer(err)
 	assert.Equal(t, err, ctrl.Err())
 }
