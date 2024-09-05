@@ -3,6 +3,8 @@ package beep
 import (
 	"fmt"
 	"math"
+
+	"github.com/pkg/errors"
 )
 
 // Take returns a Streamer which streams at most num samples from s.
@@ -137,7 +139,7 @@ func LoopBetween(start, end int) LoopOption {
 // are played once before and after the looping section, respectively.
 //
 // The returned Streamer propagates any errors from s.
-func Loop2(s StreamSeeker, opts ...LoopOption) Streamer {
+func Loop2(s StreamSeeker, opts ...LoopOption) (Streamer, error) {
 	l := &loop2{
 		s:       s,
 		remains: -1, // indefinitely
@@ -150,14 +152,14 @@ func Loop2(s StreamSeeker, opts ...LoopOption) Streamer {
 
 	n := s.Len()
 	if l.start >= n {
-		panic(fmt.Sprintf("invalid argument to Loop; start position %d is bigger than the length %d of the source streamer", l.start, n))
+		return nil, errors.New(fmt.Sprintf("invalid argument to Loop2; start position %d must be smaller than the source streamer length %d", l.start, n))
 	}
-	if l.start > l.end {
-		panic(fmt.Sprintf("invalid argument to Loop; start position %d must be smaller than the end position %d", l.start, l.end))
+	if l.start >= l.end {
+		return nil, errors.New(fmt.Sprintf("invalid argument to Loop2; start position %d must be smaller than the end position %d", l.start, l.end))
 	}
 	l.end = min(l.end, n)
 
-	return l
+	return l, nil
 }
 
 type loop2 struct {
