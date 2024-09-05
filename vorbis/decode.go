@@ -67,14 +67,20 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		leftChannelIndex = 0
 		rightChannelIndex = 0
 	case 2:
+		fallthrough
 	case 4:
 		leftChannelIndex = 0
 		rightChannelIndex = 1
 	case 3:
+		fallthrough
 	case 5:
+		fallthrough
 	case 6:
+		fallthrough
 	case 7:
+		fallthrough
 	case 8:
+		fallthrough
 	default:
 		leftChannelIndex = 0
 		rightChannelIndex = 2
