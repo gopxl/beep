@@ -139,11 +139,10 @@ func LoopBetween(start, end int) LoopOption {
 // The returned Streamer propagates any errors from s.
 func Loop2(s StreamSeeker, opts ...LoopOption) Streamer {
 	l := &loop2{
-		s:        s,
-		remains:  -1, // indefinitely
-		finished: false,
-		start:    0,
-		end:      math.MaxInt,
+		s:       s,
+		remains: -1, // indefinitely
+		start:   0,
+		end:     math.MaxInt,
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -162,16 +161,15 @@ func Loop2(s StreamSeeker, opts ...LoopOption) Streamer {
 }
 
 type loop2 struct {
-	s        StreamSeeker
-	remains  int // number of seeks remaining.
-	finished bool
-	start    int // start position in the stream where looping begins. Samples before this position are played once before the first loop.
-	end      int // end position in the stream where looping ends and restarts from `start`.
-	err      error
+	s       StreamSeeker
+	remains int // number of seeks remaining.
+	start   int // start position in the stream where looping begins. Samples before this position are played once before the first loop.
+	end     int // end position in the stream where looping ends and restarts from `start`.
+	err     error
 }
 
 func (l *loop2) Stream(samples [][2]float64) (n int, ok bool) {
-	if l.finished || l.err != nil {
+	if l.err != nil {
 		return 0, false
 	}
 	for len(samples) > 0 {
@@ -197,7 +195,6 @@ func (l *loop2) Stream(samples [][2]float64) (n int, ok bool) {
 		n += sn
 		if sn < toStream || !sok {
 			l.err = l.s.Err()
-			l.finished = true
 			return n, n > 0
 		}
 		samples = samples[sn:]
