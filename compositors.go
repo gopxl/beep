@@ -34,7 +34,69 @@ func (t *take) Err() error {
 	return t.s.Err()
 }
 
-type LoopOption func(opts *loop)
+// Loop takes a StreamSeeker and plays it count times. If count is negative, s is looped infinitely.
+//
+// The returned Streamer propagates s's errors.
+//
+// Deprecated: use Loop2 instead. A call to Loop can be rewritten as follows:
+// - beep.Loop(-1, s) -> beep.Loop2(s)
+// - beep.Loop(0, s) -> no longer supported, use beep.Ctrl instead.
+// - beep.Loop(3, s) -> beep.Loop2(s, beep.LoopTimes(2))
+// Note that beep.LoopTimes takes the number of repeats instead of the number of total plays.
+func Loop(count int, s StreamSeeker) Streamer {
+	return &loop{
+		s:       s,
+		remains: count,
+	}
+}
+
+type loop struct {
+	s       StreamSeeker
+	remains int
+}
+
+func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
+	if l.remains == 0 || l.s.Err() != nil {
+		return 0, false
+	}
+	for len(samples) > 0 {
+		sn, sok := l.s.Stream(samples)
+		if !sok {
+			if l.remains > 0 {
+				l.remains--
+			}
+			if l.remains == 0 {
+				break
+			}
+			err := l.s.Seek(0)
+			if err != nil {
+				return n, true
+			}
+			continue
+		}
+		samples = samples[sn:]
+		n += sn
+	}
+	return n, true
+}
+
+func (l *loop) Err() error {
+	return l.s.Err()
+}
+
+type LoopOption func(opts *loop2)
+
+// LoopTimes sets how many times the source stream will repeat. If a section is defined
+// by LoopStart, LoopEnd, or LoopBetween, only that section will repeat.
+// A value of 0 plays the stream or section once (no repetition); 1 plays it twice, and so on.
+func LoopTimes(times int) LoopOption {
+	if times < 0 {
+		panic("invalid argument to LoopTimes; times cannot be negative")
+	}
+	return func(loop *loop2) {
+		loop.remains = times
+	}
+}
 
 // LoopStart sets the position in the source stream to which it returns (using Seek())
 // after reaching the end of the stream or the position set using LoopEnd. The samples
@@ -43,7 +105,7 @@ func LoopStart(pos int) LoopOption {
 	if pos < 0 {
 		panic("invalid argument to LoopStart; pos cannot be negative")
 	}
-	return func(loop *loop) {
+	return func(loop *loop2) {
 		loop.start = pos
 	}
 }
@@ -55,7 +117,7 @@ func LoopEnd(pos int) LoopOption {
 	if pos < 0 {
 		panic("invalid argument to LoopEnd; pos cannot be negative")
 	}
-	return func(loop *loop) {
+	return func(loop *loop2) {
 		loop.end = pos
 	}
 }
@@ -63,23 +125,23 @@ func LoopEnd(pos int) LoopOption {
 // LoopBetween sets both the LoopStart and LoopEnd positions simultaneously, specifying
 // the section of the stream that will be looped.
 func LoopBetween(start, end int) LoopOption {
-	return func(opts *loop) {
+	return func(opts *loop2) {
 		LoopStart(start)(opts)
 		LoopEnd(end)(opts)
 	}
 }
 
-// Loop takes a StreamSeeker and plays it the specified number of times. If count is negative,
-// s loops indefinitely. LoopStart, LoopEnd, or LoopBetween can be used to define a specific
-// section of the stream to loop. The samples before the start and after the end positions are
-// played once before and after the looping section, respectively.
+// Loop2 takes a StreamSeeker and repeats it according to the specified options. If no LoopTimes
+// option is provided, the stream loops indefinitely. LoopStart, LoopEnd, or LoopBetween can define
+// a specific section of the stream to loop. Samples before the start and after the end positions
+// are played once before and after the looping section, respectively.
 //
 // The returned Streamer propagates any errors from s.
-func Loop(count int, s StreamSeeker, opts ...LoopOption) Streamer {
-	l := &loop{
+func Loop2(s StreamSeeker, opts ...LoopOption) Streamer {
+	l := &loop2{
 		s:        s,
-		remains:  count,
-		finished: count == 0,
+		remains:  -1, // indefinitely
+		finished: false,
 		start:    0,
 		end:      math.MaxInt,
 	}
@@ -99,7 +161,7 @@ func Loop(count int, s StreamSeeker, opts ...LoopOption) Streamer {
 	return l
 }
 
-type loop struct {
+type loop2 struct {
 	s        StreamSeeker
 	remains  int // number of seeks remaining.
 	finished bool
@@ -108,7 +170,7 @@ type loop struct {
 	err      error
 }
 
-func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
+func (l *loop2) Stream(samples [][2]float64) (n int, ok bool) {
 	if l.finished || l.err != nil {
 		return 0, false
 	}
@@ -143,7 +205,7 @@ func (l *loop) Stream(samples [][2]float64) (n int, ok bool) {
 	return n, true
 }
 
-func (l *loop) Err() error {
+func (l *loop2) Err() error {
 	return l.err
 }
 
