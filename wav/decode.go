@@ -129,7 +129,7 @@ func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error
 			if err := binary.Read(r, binary.LittleEndian, trash); err != nil {
 				return nil, beep.Format{}, errors.Wrap(err, "wav: missing unknown chunk body")
 			}
-			d.hsz += 4 + fs //add size of (Unknown formtype + formsize)
+			d.hsz += 4 + 4 + fs //add size of (Unknown formtype + formsize + its trailing size)
 		}
 	}
 
