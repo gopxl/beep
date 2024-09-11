@@ -1,6 +1,6 @@
 package effects
 
-import "github.com/gopxl/beep"
+import "github.com/gopxl/beep/v2"
 
 // Mono converts the wrapped Streamer to a mono buffer
 // by downmixing the left and right channels together.

@@ -6,8 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gopxl/beep"
-	"github.com/gopxl/beep/internal/testtools"
+	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/internal/testtools"
 )
 
 func TestCtrl_CanBePausedAndUnpaused(t *testing.T) {
@@ -48,6 +48,6 @@ func TestCtrl_PropagatesErrors(t *testing.T) {
 	assert.NoError(t, ctrl.Err())
 
 	err := errors.New("oh no")
-	ctrl.Streamer = testtools.ErrorStreamer{Error: err}
+	ctrl.Streamer = testtools.NewErrorStreamer(err)
 	assert.Equal(t, err, ctrl.Err())
 }

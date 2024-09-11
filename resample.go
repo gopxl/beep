@@ -5,6 +5,8 @@ import (
 	"math"
 )
 
+const resamplerSingleBufferSize = 512
+
 // Resample takes a Streamer which is assumed to stream at the old sample rate and returns a
 // Streamer, which streams the data from the original Streamer resampled to the new sample rate.
 //
@@ -17,8 +19,8 @@ import (
 //	speaker.Init(sr, sr.N(time.Second/2))
 //	speaker.Play(beep.Resample(3, format.SampleRate, sr, s))
 //
-// In the example, the original sample rate of the source if format.SampleRate. We want to play it
-// at the speaker's native sample rate and thus we need to resample.
+// In the example above, the original sample rate of the source is format.SampleRate. We want to play
+// it at the speaker's native sample rate and thus we need to resample.
 //
 // The quality argument specifies the quality of the resampling process. Higher quality implies
 // worse performance. Values below 1 or above 64 are invalid and Resample will panic. Here's a table
@@ -47,18 +49,26 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 	if quality < 1 || 64 < quality {
 		panic(fmt.Errorf("resample: invalid quality: %d", quality))
 	}
-	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+	if ratio <= 0 || math.IsInf(ratio, 0) || math.IsNaN(ratio) {
 		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
 	return &Resampler{
 		s:     s,
 		ratio: ratio,
-		first: true,
-		buf1:  make([][2]float64, 512),
-		buf2:  make([][2]float64, 512),
+		buf1:  make([][2]float64, resamplerSingleBufferSize),
+		buf2:  make([][2]float64, resamplerSingleBufferSize),
 		pts:   make([]point, quality*2),
-		off:   0,
-		pos:   0,
+		// The initial value of `off` is set so that the current position is just behind the end
+		// of buf2:
+		//   current position (0) - len(buf2) = -resamplerSingleBufferSize
+		// When the Stream() method is called for the first time, it will determine that neither
+		// buf1 nor buf2 contain the required samples because they are both in the past relative to
+		// the chosen `off` value. As a result, buf2 will be filled with samples, and `off` will be
+		// incremented by resamplerSingleBufferSize, making `off` equal to 0. This will align the
+		// start of buf2 with the current position.
+		off: -resamplerSingleBufferSize,
+		pos: 0.0,
+		end: math.MaxInt,
 	}
 }
 
@@ -66,79 +76,80 @@ func ResampleRatio(quality int, ratio float64, s Streamer) *Resampler {
 // changing of the resampling ratio, which can be useful for dynamically changing the speed of
 // streaming.
 type Resampler struct {
-	s          Streamer     // the orignal streamer
+	s          Streamer     // the original streamer
 	ratio      float64      // old sample rate / new sample rate
-	first      bool         // true when Stream was not called before
 	buf1, buf2 [][2]float64 // buf1 contains previous buf2, new data goes into buf2, buf1 is because interpolation might require old samples
 	pts        []point      // pts is for points used for interpolation
 	off        int          // off is the position of the start of buf2 in the original data
-	pos        int          // pos is the current position in the resampled data
+	pos        float64      // pos is the current position in the resampled data
+	end        int          // end is the position after the last sample in the original data
 }
 
 // Stream streams the original audio resampled according to the current ratio.
 func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
-	// if it's the first time, we need to fill buf2 with initial data, buf1 remains zeroed
-	if r.first {
-		sn, _ := r.s.Stream(r.buf2)
-		r.buf2 = r.buf2[:sn]
-		r.first = false
-	}
-	// we start resampling, sample by sample
 	for len(samples) > 0 {
-	again:
-		for c := range samples[0] {
-			// calculate the current position in the original data
-			j := float64(r.pos) * r.ratio
+		// Calculate the current position in the original data.
+		wantPos := r.pos * r.ratio
 
-			// find quality*2 closest samples to j and translate them to points for interpolation
-			for pi := range r.pts {
-				// calculate the index of one of the closest samples
-				k := int(j) + pi - len(r.pts)/2 + 1
+		// Determine the quality*2 closest sample positions for the interpolation.
+		// The window has length len(r.pts) and is centered around wantPos.
+		windowStart := int(wantPos) - (len(r.pts)-1)/2 // (inclusive)
+		windowEnd := int(wantPos) + len(r.pts)/2 + 1   // (exclusive)
 
-				var y float64
-				switch {
-				// the sample is in buf1
-				case k < r.off:
-					y = r.buf1[len(r.buf1)+k-r.off][c]
-				// the sample is in buf2
-				case k < r.off+len(r.buf2):
-					y = r.buf2[k-r.off][c]
-				// the sample is beyond buf2, so we need to load new data
-				case k >= r.off+len(r.buf2):
-					// we load into buf1
-					sn, _ := r.s.Stream(r.buf1)
-					// this condition happens when the original Streamer got
-					// drained and j is after the end of the
-					// original data
-					if int(j) >= r.off+len(r.buf2)+sn {
-						return n, n > 0
-					}
-					// this condition happens when the original Streamer got
-					// drained and this one of the closest samples is after the
-					// end of the original data
-					if k >= r.off+len(r.buf2)+sn {
-						y = 0
-						break
-					}
-					// otherwise everything is fine, we swap buffers and start
-					// calculating the sample again
-					r.off += len(r.buf2)
-					r.buf1 = r.buf1[:sn]
-					r.buf1, r.buf2 = r.buf2, r.buf1
-					goto again
-				}
-
-				r.pts[pi] = point{float64(k), y}
+		// Prepare the buffers.
+		for windowEnd > r.off+resamplerSingleBufferSize {
+			// We load into buf1.
+			sn, _ := r.s.Stream(r.buf1)
+			if sn < len(r.buf1) {
+				r.end = r.off + resamplerSingleBufferSize + sn
 			}
 
-			// calculate the resampled sample using polynomial interpolation from the
-			// quality*2 closest samples
-			samples[0][c] = lagrange(r.pts, j)
+			// Swap buffers.
+			r.buf1, r.buf2 = r.buf2, r.buf1
+			r.off += resamplerSingleBufferSize
 		}
+
+		// Exit when wantPos is after the end of the original data.
+		if int(wantPos) >= r.end {
+			return n, n > 0
+		}
+
+		// Adjust the window to be within the available buffers.
+		windowStart = max(windowStart, 0)
+		windowEnd = min(windowEnd, r.end)
+
+		// For each channel...
+		for c := range samples[0] {
+			// Get the points.
+			numPts := windowEnd - windowStart
+			pts := r.pts[:numPts]
+			for i := range pts {
+				x := windowStart + i
+				var y float64
+				if x < r.off {
+					// Sample is in buf1.
+					offBuf1 := r.off - resamplerSingleBufferSize
+					y = r.buf1[x-offBuf1][c]
+				} else {
+					// Sample is in buf2.
+					y = r.buf2[x-r.off][c]
+				}
+				pts[i] = point{
+					X: float64(x),
+					Y: y,
+				}
+			}
+
+			// Calculate the resampled sample using polynomial interpolation from the
+			// quality*2 closest samples.
+			samples[0][c] = lagrange(pts, wantPos)
+		}
+
 		samples = samples[1:]
 		n++
 		r.pos++
 	}
+
 	return n, true
 }
 
@@ -154,10 +165,10 @@ func (r *Resampler) Ratio() float64 {
 
 // SetRatio sets the resampling ratio. This does not cause any glitches in the stream.
 func (r *Resampler) SetRatio(ratio float64) {
-	if math.IsInf(ratio, 0) || math.IsNaN(ratio) {
+	if ratio <= 0 || math.IsInf(ratio, 0) || math.IsNaN(ratio) {
 		panic(fmt.Errorf("resample: invalid ratio: %f", ratio))
 	}
-	r.pos = int(float64(r.pos) * r.ratio / ratio)
+	r.pos *= r.ratio / ratio
 	r.ratio = ratio
 }
 

@@ -3,7 +3,7 @@ package effects
 import (
 	"math"
 
-	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/v2"
 )
 
 type (

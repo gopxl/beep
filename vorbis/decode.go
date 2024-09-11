@@ -4,9 +4,10 @@ package vorbis
 import (
 	"io"
 
-	"github.com/gopxl/beep"
 	"github.com/jfreymuth/oggvorbis"
 	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep/v2"
 )
 
 const (
@@ -28,18 +29,25 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 	if err != nil {
 		return nil, beep.Format{}, err
 	}
+
+	channels := d.Channels()
+	if channels > 2 {
+		channels = 2
+	}
+
 	format = beep.Format{
 		SampleRate:  beep.SampleRate(d.SampleRate()),
-		NumChannels: d.Channels(),
+		NumChannels: channels,
 		Precision:   govorbisPrecision,
 	}
-	return &decoder{rc, d, format, nil}, format, nil
+
+	return &decoder{rc, d, make([]float32, d.Channels()), nil}, format, nil
 }
 
 type decoder struct {
 	closer io.Closer
 	d      *oggvorbis.Reader
-	f      beep.Format
+	tmp    []float32
 	err    error
 }
 
@@ -47,34 +55,59 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	if d.err != nil {
 		return 0, false
 	}
-	var tmp [2]float32
+
+	// https://xiph.org/vorbis/doc/vorbisfile/ov_read.html
+	// https://xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-810004.3.9
+	var leftChannelIndex, rightChannelIndex int
+	switch d.d.Channels() {
+	case 0:
+		d.err = errors.New("ogg/vorbis: invalid channel count: 0")
+		return 0, false
+	case 1:
+		leftChannelIndex = 0
+		rightChannelIndex = 0
+	case 2:
+		fallthrough
+	case 4:
+		leftChannelIndex = 0
+		rightChannelIndex = 1
+	case 3:
+		fallthrough
+	case 5:
+		fallthrough
+	case 6:
+		fallthrough
+	case 7:
+		fallthrough
+	case 8:
+		fallthrough
+	default:
+		leftChannelIndex = 0
+		rightChannelIndex = 2
+	}
+
 	for i := range samples {
-		var err error
-		var dn int
-		if d.d.Channels() == 1 {
-			dn, err = d.d.Read(tmp[:1])
-			if dn == 1 {
-				samples[i][0], samples[i][1] = float64(tmp[0]), float64(tmp[0])
-				n++
-				ok = true
-			}
-		} else {
-			dn, err = d.d.Read(tmp[:])
-			if dn == 2 {
-				samples[i][0], samples[i][1] = float64(tmp[0]), float64(tmp[1])
-				n++
-				ok = true
-			}
+		dn, err := d.d.Read(d.tmp)
+		if dn == 0 {
+			break
+		}
+		if dn < len(d.tmp) {
+			d.err = errors.New("ogg/vorbis: could only read part of a frame")
+			return 0, false
 		}
 		if err == io.EOF {
-			break
+			return 0, false
 		}
 		if err != nil {
 			d.err = errors.Wrap(err, "ogg/vorbis")
-			break
+			return 0, false
 		}
+
+		samples[i][0] = float64(d.tmp[leftChannelIndex])
+		samples[i][1] = float64(d.tmp[rightChannelIndex])
+		n++
 	}
-	return n, ok
+	return n, n > 0
 }
 
 func (d *decoder) Err() error {

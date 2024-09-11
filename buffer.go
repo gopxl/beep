@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/gopxl/beep/v2/internal/util"
 )
 
 // SampleRate is the number of samples per second.
@@ -63,11 +65,11 @@ func (f Format) DecodeUnsigned(p []byte) (sample [2]float64, n int) {
 func (f Format) encode(signed bool, p []byte, sample [2]float64) (n int) {
 	switch {
 	case f.NumChannels == 1:
-		x := norm((sample[0] + sample[1]) / 2)
+		x := util.Clamp((sample[0]+sample[1])/2, -1, 1)
 		p = p[encodeFloat(signed, f.Precision, p, x):]
 	case f.NumChannels >= 2:
 		for c := range sample {
-			x := norm(sample[c])
+			x := util.Clamp(sample[c], -1, 1)
 			p = p[encodeFloat(signed, f.Precision, p, x):]
 		}
 		for c := len(sample); c < f.NumChannels; c++ {
@@ -128,36 +130,26 @@ func decodeFloat(signed bool, precision int, p []byte) (x float64, n int) {
 
 func floatToSigned(precision int, x float64) uint64 {
 	if x < 0 {
-		compl := uint64(-x * (math.Exp2(float64(precision)*8-1) - 1))
+		compl := uint64(-x * math.Exp2(float64(precision)*8-1))
 		return uint64(1<<uint(precision*8)) - compl
 	}
-	return uint64(x * (math.Exp2(float64(precision)*8-1) - 1))
+	return uint64(math.Min(x*math.Exp2(float64(precision)*8-1), math.Exp2(float64(precision)*8-1)-1))
 }
 
 func floatToUnsigned(precision int, x float64) uint64 {
-	return uint64((x + 1) / 2 * (math.Exp2(float64(precision)*8) - 1))
+	return uint64(math.Min((x+1)/2*math.Exp2(float64(precision)*8), math.Exp2(float64(precision)*8)-1))
 }
 
 func signedToFloat(precision int, xUint64 uint64) float64 {
 	if xUint64 >= 1<<uint(precision*8-1) {
 		compl := 1<<uint(precision*8) - xUint64
-		return -float64(int64(compl)) / (math.Exp2(float64(precision)*8-1) - 1)
+		return -float64(int64(compl)) / math.Exp2(float64(precision)*8-1)
 	}
-	return float64(int64(xUint64)) / (math.Exp2(float64(precision)*8-1) - 1)
+	return float64(int64(xUint64)) / math.Exp2(float64(precision)*8-1)
 }
 
 func unsignedToFloat(precision int, xUint64 uint64) float64 {
-	return float64(xUint64)/(math.Exp2(float64(precision)*8)-1)*2 - 1
-}
-
-func norm(x float64) float64 {
-	if x < -1 {
-		return -1
-	}
-	if x > +1 {
-		return +1
-	}
-	return x
+	return float64(xUint64)/(math.Exp2(float64(precision)*8))*2 - 1
 }
 
 // Buffer is a storage for audio data. You can think of it as a bytes.Buffer for audio samples.

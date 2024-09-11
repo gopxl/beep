@@ -7,10 +7,11 @@ import (
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/gopxl/beep"
-	"github.com/gopxl/beep/effects"
-	"github.com/gopxl/beep/mp3"
-	"github.com/gopxl/beep/speaker"
+
+	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/effects"
+	"github.com/gopxl/beep/v2/mp3"
+	"github.com/gopxl/beep/v2/speaker"
 )
 
 func drawTextLine(screen tcell.Screen, x, y int, s string, style tcell.Style) {
@@ -102,12 +103,10 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 			if event.Rune() == 'w' {
 				newPos += ap.sampleRate.N(time.Second)
 			}
-			if newPos < 0 {
-				newPos = 0
-			}
-			if newPos >= ap.streamer.Len() {
-				newPos = ap.streamer.Len() - 1
-			}
+			// Clamp the position to be within the stream
+			newPos = max(newPos, 0)
+			newPos = min(newPos, ap.streamer.Len()-1)
+
 			if err := ap.streamer.Seek(newPos); err != nil {
 				report(err)
 			}
@@ -128,13 +127,17 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 
 		case 'z':
 			speaker.Lock()
-			ap.resampler.SetRatio(ap.resampler.Ratio() * 15 / 16)
+			newRatio := ap.resampler.Ratio() * 15 / 16
+			newRatio = max(newRatio, 0.001) // Limit to a reasonable ratio
+			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
 
 		case 'x':
 			speaker.Lock()
-			ap.resampler.SetRatio(ap.resampler.Ratio() * 16 / 15)
+			newRatio := ap.resampler.Ratio() * 16 / 15
+			newRatio = min(newRatio, 100) // Limit to a reasonable ratio
+			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
 		}

@@ -1,23 +1,23 @@
 # Beep
 
-[![GoDoc](https://godoc.org/github.com/gopxl/beep?status.svg)](https://godoc.org/github.com/gopxl/beep)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gopxl/beep/v2.svg)](https://pkg.go.dev/github.com/gopxl/beep/v2)
 [![Go build status](https://github.com/gopxl/beep/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/gopxl/beep/actions/workflows/go.yml?query=branch%3Amain)
 [![Coverage Status](https://coveralls.io/repos/github/gopxl/beep/badge.svg?branch=main)](https://coveralls.io/github/gopxl/beep?branch=main)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gopxl/beep)](https://goreportcard.com/report/github.com/gopxl/beep)
-[![Discord Chat](https://img.shields.io/discord/1158461233121468496)](https://discord.gg/erpa32cB)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gopxl/beep/v2)](https://goreportcard.com/report/github.com/gopxl/beep/v2)
+[![Discord Chat](https://img.shields.io/discord/1158461233121468496)](https://discord.gg/hPBTTXGDU3)
 
 
 A little package that brings sound to any Go application. Suitable for playback and audio-processing.
 
 ```
-go get -u github.com/gopxl/beep
+go get -u github.com/gopxl/beep/v2
 ```
 
 ## Features
 
 Beep is built on top of its [Streamer](https://godoc.org/github.com/gopxl/beep#Streamer) interface, which is like [io.Reader](https://golang.org/pkg/io/#Reader), but for audio. It was one of the best design decisions I've ever made and it enabled all the rest of the features to naturally come together with not much code.
 
-- **Decode and play WAV, MP3, OGG, and FLAC.**
+- **Decode and play WAV, MP3, OGG, FLAC and MIDI.**
 - **Encode and save WAV.**
 - **Very simple API.** Limiting the support to stereo (two channel) audio made it possible to simplify the architecture and the API.
 - **Rich library of compositors and effects.** Loop, pause/resume, change volume, mix, sequence, change playback speed, and more.
@@ -55,5 +55,5 @@ Running an already built application should work with no extra dependencies.
 - [Microphone support for Beep (a wrapper around PortAudio)](https://github.com/MarkKremer/microphone)
 
 ## Projects using Beep
-
+- [retro](https://github.com/Malwarize/retro)
 - [Mifasol music server](https://github.com/jypelle/mifasol)

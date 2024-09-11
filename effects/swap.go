@@ -1,6 +1,6 @@
 package effects
 
-import "github.com/gopxl/beep"
+import "github.com/gopxl/beep/v2"
 
 // Swap swaps the left and right channel of the wrapped Streamer.
 //

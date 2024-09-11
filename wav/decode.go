@@ -7,8 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/gopxl/beep"
 	"github.com/pkg/errors"
+
+	"github.com/gopxl/beep/v2"
 )
 
 // Decode takes a Reader containing audio data in WAVE format and returns a StreamSeekCloser,
@@ -128,7 +129,7 @@ func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error
 			if err := binary.Read(r, binary.LittleEndian, trash); err != nil {
 				return nil, beep.Format{}, errors.Wrap(err, "wav: missing unknown chunk body")
 			}
-			d.hsz += 4 + fs //add size of (Unknown formtype + formsize)
+			d.hsz += 4 + 4 + fs //add size of (Unknown formtype + formsize + its trailing size)
 		}
 	}
 
@@ -207,10 +208,9 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		return 0, false
 	}
 	bytesPerFrame := int(d.h.BytesPerFrame)
-	numBytes := int32(len(samples) * bytesPerFrame)
-	if numBytes > d.h.DataSize-d.pos {
-		numBytes = d.h.DataSize - d.pos
-	}
+	wantBytes := len(samples) * bytesPerFrame
+	availableBytes := int(d.h.DataSize - d.pos)
+	numBytes := min(wantBytes, availableBytes)
 	p := make([]byte, numBytes)
 	n, err := d.r.Read(p)
 	if err != nil && err != io.EOF {
@@ -219,36 +219,36 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	switch {
 	case d.h.BitsPerSample == 8 && d.h.NumChans == 1:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			val := float64(p[i])/(1<<8-1)*2 - 1
+			val := float64(p[i])/(1<<8)*2 - 1
 			samples[j][0] = val
 			samples[j][1] = val
 		}
 	case d.h.BitsPerSample == 8 && d.h.NumChans >= 2:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			samples[j][0] = float64(p[i+0])/(1<<8-1)*2 - 1
-			samples[j][1] = float64(p[i+1])/(1<<8-1)*2 - 1
+			samples[j][0] = float64(p[i+0])/(1<<8)*2 - 1
+			samples[j][1] = float64(p[i+1])/(1<<8)*2 - 1
 		}
 	case d.h.BitsPerSample == 16 && d.h.NumChans == 1:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			val := float64(int16(p[i+0])+int16(p[i+1])*(1<<8)) / (1<<16 - 1)
+			val := float64(int16(p[i+0])+int16(p[i+1])*(1<<8)) / (1 << 15)
 			samples[j][0] = val
 			samples[j][1] = val
 		}
 	case d.h.BitsPerSample == 16 && d.h.NumChans >= 2:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			samples[j][0] = float64(int16(p[i+0])+int16(p[i+1])*(1<<8)) / (1<<16 - 1)
-			samples[j][1] = float64(int16(p[i+2])+int16(p[i+3])*(1<<8)) / (1<<16 - 1)
+			samples[j][0] = float64(int16(p[i+0])+int16(p[i+1])*(1<<8)) / (1 << 15)
+			samples[j][1] = float64(int16(p[i+2])+int16(p[i+3])*(1<<8)) / (1 << 15)
 		}
 	case d.h.BitsPerSample == 24 && d.h.NumChans == 1:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			val := float64((int32(p[i+0])<<8)+(int32(p[i+1])<<16)+(int32(p[i+2])<<24)) / (1 << 8) / (1<<24 - 1)
+			val := float64((int32(p[i+0])<<8)+(int32(p[i+1])<<16)+(int32(p[i+2])<<24)) / (1 << 8) / (1 << 23)
 			samples[j][0] = val
 			samples[j][1] = val
 		}
 	case d.h.BitsPerSample == 24 && d.h.NumChans >= 2:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
-			samples[j][0] = float64((int32(p[i+0])<<8)+(int32(p[i+1])<<16)+(int32(p[i+2])<<24)) / (1 << 8) / (1<<24 - 1)
-			samples[j][1] = float64((int32(p[i+3])<<8)+(int32(p[i+4])<<16)+(int32(p[i+5])<<24)) / (1 << 8) / (1<<24 - 1)
+			samples[j][0] = float64((int32(p[i+0])<<8)+(int32(p[i+1])<<16)+(int32(p[i+2])<<24)) / (1 << 8) / (1 << 23)
+			samples[j][1] = float64((int32(p[i+3])<<8)+(int32(p[i+4])<<16)+(int32(p[i+5])<<24)) / (1 << 8) / (1 << 23)
 		}
 	}
 	d.pos += int32(n)
