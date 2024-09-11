@@ -11,8 +11,8 @@ type Streamer interface {
 	// Similarly, samples[i][1] is the value of the right channel of the i-th sample.
 	//
 	// Stream returns the number of streamed samples. If the Streamer is drained and no more
-	// samples will be produced, it returns 0 and false. Even if Stream returns n < len(samples),
-	// it may use all of samples as scratch space during the call.
+	// samples will be produced, it returns 0 and false. Stream must not touch any samples
+	// outside samples[:n].
 	//
 	// There are 3 valid return patterns of the Stream method:
 	//
