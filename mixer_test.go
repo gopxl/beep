@@ -51,7 +51,7 @@ func TestMixer_MixesSamples(t *testing.T) {
 
 func TestMixer_DrainedStreamersAreRemoved(t *testing.T) {
 	s1, _ := testtools.RandomDataStreamer(50)
-	s2, _ := testtools.RandomDataStreamer(60)
+	s2, _ := testtools.RandomDataStreamer(65)
 
 	m := beep.Mixer{}
 	m.Add(s1)
@@ -62,13 +62,12 @@ func TestMixer_DrainedStreamersAreRemoved(t *testing.T) {
 	assert.Len(t, samples, 50)
 	assert.Equal(t, 2, m.Len())
 
-	// Fully drain s1.
-	// Drain s2 but not so far it returns false.
+	// Drain s1 (s1 returns !ok, n == 0)
 	samples = testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
 	assert.Equal(t, 1, m.Len())
 
-	// Fully drain s2.
+	// Drain s2 (s2 returns ok, n < len(samples))
 	samples = testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
 	assert.Equal(t, 0, m.Len())
@@ -82,22 +81,16 @@ func TestMixer_PlaysSilenceWhenNoStreamersProduceSamples(t *testing.T) {
 	assert.Len(t, samples, 10)
 	assert.Equal(t, make([][2]float64, 10), samples)
 
-	// Test silence after streamer is partly drained.
-	s, _ := testtools.RandomDataStreamer(50)
+	// Test silence after streamer has only streamed part of the requested samples.
+	s, data := testtools.RandomDataStreamer(50)
 	m.Add(s)
-
 	samples = testtools.CollectNum(100, &m)
 	assert.Len(t, samples, 100)
-	assert.Equal(t, 1, m.Len())
+	assert.Equal(t, 0, m.Len())
+	assert.Equal(t, data, samples[:50])
 	assert.Equal(t, make([][2]float64, 50), samples[50:])
 
-	// Test silence when streamer is fully drained.
-	samples = testtools.CollectNum(10, &m)
-	assert.Len(t, samples, 10)
-	assert.Equal(t, 0, m.Len())
-	assert.Equal(t, make([][2]float64, 10), samples)
-
-	// Test silence after streamer was fully drained.
+	// Test silence after streamers have been drained & removed.
 	samples = testtools.CollectNum(10, &m)
 	assert.Len(t, samples, 10)
 	assert.Equal(t, make([][2]float64, 10), samples)

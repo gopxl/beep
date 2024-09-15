@@ -1,9 +1,17 @@
 package beep
 
 // Mixer allows for dynamic mixing of arbitrary number of Streamers. Mixer automatically removes
-// drained Streamers. Mixer's stream never drains, when empty, Mixer streams silence.
+// drained Streamers. Depending on the KeepAlive() setting, Stream will either play silence or
+// drain when all Streamers have been drained. By default, Mixer keeps playing silence.
 type Mixer struct {
-	streamers []Streamer
+	streamers     []Streamer
+	stopWhenEmpty bool
+}
+
+// KeepAlive configures the Mixer to either keep playing silence when all its Streamers have
+// drained (keepAlive == true) or stop playing (keepAlive == false).
+func (m *Mixer) KeepAlive(keepAlive bool) {
+	m.stopWhenEmpty = !keepAlive
 }
 
 // Len returns the number of Streamers currently playing in the Mixer.
@@ -18,12 +26,20 @@ func (m *Mixer) Add(s ...Streamer) {
 
 // Clear removes all Streamers from the mixer.
 func (m *Mixer) Clear() {
+	for i := range m.streamers {
+		m.streamers[i] = nil
+	}
 	m.streamers = m.streamers[:0]
 }
 
-// Stream streams all Streamers currently in the Mixer mixed together. This method always returns
-// len(samples), true. If there are no Streamers available, this methods streams silence.
+// Stream the samples of all Streamers currently in the Mixer mixed together. Depending on the
+// KeepAlive() setting, Stream will either play silence or drain when all Streamers have been
+// drained.
 func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
+	if m.stopWhenEmpty && len(m.streamers) == 0 {
+		return 0, false
+	}
+
 	var tmp [512][2]float64
 
 	for len(samples) > 0 {
@@ -32,6 +48,7 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 		// clear the samples
 		clear(samples[:toStream])
 
+		snMax := 0
 		for si := 0; si < len(m.streamers); si++ {
 			// mix the stream
 			sn, sok := m.streamers[si].Stream(tmp[:toStream])
@@ -39,12 +56,21 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 				samples[i][0] += tmp[i][0]
 				samples[i][1] += tmp[i][1]
 			}
-			if !sok {
+			if sn > snMax {
+				snMax = sn
+			}
+
+			if sn < toStream || !sok {
 				// remove drained streamer
-				sj := len(m.streamers) - 1
-				m.streamers[si], m.streamers[sj] = m.streamers[sj], m.streamers[si]
-				m.streamers = m.streamers[:sj]
+				last := len(m.streamers) - 1
+				m.streamers[si] = m.streamers[last]
+				m.streamers[last] = nil
+				m.streamers = m.streamers[:last]
 				si--
+
+				if m.stopWhenEmpty && len(m.streamers) == 0 {
+					return n + snMax, true
+				}
 			}
 		}
 
