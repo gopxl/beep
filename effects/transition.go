@@ -57,7 +57,10 @@ func (t *TransitionStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 	for i := 0; i < n; i++ {
 		pos := t.pos + i
 		progress := float64(pos) / float64(t.len)
-		progress = min(progress, 1.0)
+		//progress = min(progress, 1.0)
+		if progress > 1 {
+			progress = 1
+		}
 		value := t.transitionFunc(progress)
 		gain := t.startGain + (t.endGain-t.startGain)*value
 

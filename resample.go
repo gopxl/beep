@@ -115,8 +115,14 @@ func (r *Resampler) Stream(samples [][2]float64) (n int, ok bool) {
 		}
 
 		// Adjust the window to be within the available buffers.
-		windowStart = max(windowStart, 0)
-		windowEnd = min(windowEnd, r.end)
+		//windowStart = max(windowStart, 0)
+		if windowStart < 0 {
+			windowStart = 0
+		}
+		//windowEnd = min(windowEnd, r.end)
+		if windowEnd > r.end {
+			windowEnd = r.end
+		}
 
 		// For each channel...
 		for c := range samples[0] {

@@ -196,7 +196,10 @@ func TestMix(t *testing.T) {
 
 	maxLen := 0
 	for _, d := range data {
-		maxLen = max(maxLen, len(d))
+		//maxLen = max(maxLen, len(d))
+		if len(d) > maxLen {
+			maxLen = len(d)
+		}
 	}
 
 	want := make([][2]float64, maxLen)

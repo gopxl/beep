@@ -35,7 +35,10 @@ func (c *Ctrl) Stream(samples [][2]float64) (n int, ok bool) {
 		return 0, false
 	}
 	if c.Paused {
-		clear(samples)
+		//clear(samples)
+		for i := range samples {
+			samples[i] = [2]float64{}
+		}
 		return len(samples), true
 	}
 	return c.Streamer.Stream(samples)

@@ -109,8 +109,14 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 				newPos += ap.sampleRate.N(time.Second)
 			}
 			// Clamp the position to be within the stream
-			newPos = max(newPos, 0)
-			newPos = min(newPos, ap.streamer.Len()-1)
+			//newPos = max(newPos, 0)
+			if newPos < 0 {
+				newPos = 0
+			}
+			//newPos = min(newPos, ap.streamer.Len()-1)
+			if newPos >= ap.streamer.Len() {
+				newPos = ap.streamer.Len() - 1
+			}
 
 			if err := ap.streamer.Seek(newPos); err != nil {
 				report(err)
@@ -133,7 +139,10 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 		case 'z':
 			speaker.Lock()
 			newRatio := ap.resampler.Ratio() * 15 / 16
-			newRatio = max(newRatio, 0.001) // Limit to a reasonable ratio
+			//newRatio = max(newRatio, 0.001) // Limit to a reasonable ratio
+			if newRatio < 0.001 {
+				newRatio = 0.001
+			}
 			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
@@ -141,7 +150,10 @@ func (ap *audioPanel) handle(event tcell.Event) (changed, quit bool) {
 		case 'x':
 			speaker.Lock()
 			newRatio := ap.resampler.Ratio() * 16 / 15
-			newRatio = min(newRatio, 100) // Limit to a reasonable ratio
+			//newRatio = min(newRatio, 100) // Limit to a reasonable ratio
+			if newRatio > 100 {
+				newRatio = 100
+			}
 			ap.resampler.SetRatio(newRatio)
 			speaker.Unlock()
 			return true, false
