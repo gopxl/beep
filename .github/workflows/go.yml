@@ -16,8 +16,7 @@ jobs:
     strategy:
       matrix:
         go:
-          - '1.21' # minimum supported version
-          - 'stable'
+          - '1.20' # Go version of Ikemen GO
     name: "build with Go ${{ matrix.go }}"
     steps:
       - uses: actions/checkout@v4

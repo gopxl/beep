@@ -1,6 +1,6 @@
 module github.com/gopxl/beep/v2
 
-go 1.21
+go 1.20
 
 require (
 	github.com/ebitengine/oto/v3 v3.3.2
