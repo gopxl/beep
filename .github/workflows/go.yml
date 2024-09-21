@@ -13,13 +13,19 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go:
+          - '1.21' # minimum supported version
+          - 'stable'
+    name: "build with Go ${{ matrix.go }}"
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: ${{ matrix.go }}
 
       - name: Install goveralls
         if: ${{ github.ref == 'refs/heads/main' }}
