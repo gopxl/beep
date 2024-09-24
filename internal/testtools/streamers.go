@@ -96,7 +96,11 @@ func (e *ErrorStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 		return 0, false
 	}
 
-	toStream := min(e.samplesLeft, len(samples))
+	//toStream := min(e.samplesLeft, len(samples))
+	toStream := e.samplesLeft
+	if toStream > len(samples) {
+		toStream = len(samples)
+	}
 	n, ok = e.s.Stream(samples[:toStream])
 	e.samplesLeft -= n
 
