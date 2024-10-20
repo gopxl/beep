@@ -1,0 +1,18 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: ['main']
+    tags: ['*']
+
+jobs:
+  upload-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: gopxl/docs@main
+        with:
+          docs-directory: 'docs/'
+          main-branch: 'main'
