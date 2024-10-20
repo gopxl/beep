@@ -1,0 +1,197 @@
+Welcome to the Beep tutorial! In this part, we'll learn how to load a song, initialize the speaker, and wake up your neighbors.
+
+The first thing we obviously need is the [Beep library](https://github.com/gopxl/beep/) (I expect you have the Go programming language installed), which you can install with this command:
+
+```
+$ go get -u github.com/gopxl/beep
+```
+
+We'll start with a plain main function and we'll import the Beep package:
+
+```go
+package main
+
+import "github.com/gopxl/beep"
+
+func main() {
+	// here we go!
+}
+```
+
+Put some MP3/WAV/OGG/FLAC song in the directory of your program. I put `Rockafeller Skank.mp3` by the awesome [Fatboy Slim](https://en.wikipedia.org/wiki/Fatboy_Slim). You can put any song you like.
+
+Now we need to open the file, so that we can decode and play it. We do this simply with the standard [`os.Open`](https://golang.org/pkg/os/#Open):
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/gopxl/beep"
+)
+
+func main() {
+	f, err := os.Open("Rockafeller Skank.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+```
+
+Since my file is an MP3, I import [`github.com/gopxl/beep/mp3`](https://godoc.org/github.com/gopxl/beep/mp3) and decode it with `mp3.Decode`. If your file is a WAV, use [`github.com/gopxl/beep/wav`](https://godoc.org/github.com/gopxl/beep/wav) and similarly with other formats.
+
+```go
+	f, err := os.Open("Rockafeller Skank.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+```
+
+The function `mp3.Decode` returned two very interesting values and one uninteresting error. The first one - the `streamer` - is something we can use to actually play the song. The second one - the `format` - tells us something about the song, most importantly, its [sample rate](https://en.wikipedia.org/wiki/Sample_rate).
+
+> **Before we get into the rough action, here's an important fact:** `mp3.Decode` _does not_ immediately read and decode the file. It simply returns a streamer that does the reading and decoding on-line (when needed). That way, you can actually stream gigabytes long files directly from the disk consuming almost no RAM. The main consequence/gotcha is that you can't close the file `f` before you finish streaming it. In fact, don't close it at all. Use `streamer.Close()` instead, it'll take care of that. (You can load a file into the memory with [Buffer](https://godoc.org/github.com/gopxl/beep#Buffer) as we'll learn later.)
+
+And we'll do exactly that:
+
+```go
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+```
+
+Now, **what's a streamer**? Well, for one, [it's an interface](https://godoc.org/github.com/gopxl/beep#Streamer). You can think of it as an [`io.Reader`](https://golang.org/pkg/io/#Reader) for audio samples.
+
+> **What are audio samples?** I'm sure you're familiar with the concept of a sound wave. It indicates the air pressure at any point of time. Samples are used to store this sound wave by storing the air pressure at discrete, evenly spaced points of time. If we store the air pressure 44100 times per second, then the sample rate is 44100 samples per second.
+>
+> In Beep, samples are represented by the type `[2]float64`. They are two floats, because one float is for the left speaker and the other one is for the right speaker. `Streamers`'s analogue of the `io.Reader`'s `Read` method is the `Stream` method, which has this signature: `Stream(samples [][2]float64) (n int, ok bool)`. It looks very much like `Read`, takes a slice of samples, fills it, and returns how many samples it filled.
+
+One important thing about a streamer is that it drains, just like an `io.Reader`, once you stream it, it's gone. Of course, `mp3.Decode` returns a [`beep.StreamSeeker`](https://godoc.org/github.com/gopxl/beep#StreamSeeker), so we can rewind it back to the beginning and play it again. The main point is that a `Streamer` is stateful, like an audio tape.
+
+Okay, onto waking up the neighbors!
+
+Beep has a dedicated [`github.com/gopxl/beep/speaker`](https://godoc.org/github.com/gopxl/beep/speaker) package for blasting sound, which uses [Oto](https://github.com/hajimehoshi/oto) under the hood. The first thing we need to do is to initialize the speaker.
+
+```go
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+```
+
+Whoa, there's a lot going on here! The function `speaker.Init` takes two arguments: the sample rate, and the buffer size.
+
+**The sample rate argument** simply tells the speaker how quickly it should push the samples to the output. We tell it to do it at exactly `format.SampleRate` samples per second, so that the song plays at the correct speed.
+
+**The second argument** is the buffer size. This is the number of samples the speaker stores before putting them out. This is to avoid glitches in the playback when the program isn't perfectly synchronized with the speaker. _Larger the buffer, better the stability. Smaller the buffer, lower the latency._ We calculate the size of the buffer using the [`SampleRate.N`](https://godoc.org/github.com/gopxl/beep#SampleRate.N) (`N` stands for _number_), which calculates the number of samples contained in the provided duration. There's an inverse [`SampleRate.D`](https://godoc.org/github.com/gopxl/beep#SampleRate.D) method. We chose the buffer size of 1/10 of a second.
+
+> **An important notice:** Don't call `speaker.Init` each time you want to play something! Generally, you only want to call it once at the beginning of your program. Calling it again and again will reset the speaker, preventing you from playing multiple sounds simultaneously.
+
+Now, we can finally play the streamer!
+
+```go
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	speaker.Play(streamer)
+```
+
+**Let's run it!**
+
+```
+$ go run hello-beep.go
+$
+```
+
+Nothing? The program just finished immediately.
+
+That's because [`speaker.Play`](https://godoc.org/github.com/gopxl/beep/speaker#Play) is an asynchronous call. It _starts_ playing the streamer, but doesn't wait until it finishes playing. We can fix this temporarily with `select {}` which makes the program hang forever:
+
+```go
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	speaker.Play(streamer)
+	select {}
+```
+
+**Run it again!**
+
+```
+$ go run hello-beep.go
+```
+
+Now it works! Perfect.
+
+> **Note:** You can easily play multiple streamers simultaneously, simply by sending all of them to the speaker with `speaker.Play`.
+
+But it's kinda ugly. We can fix it! Beep provides and function called [`beep.Seq`](https://godoc.org/github.com/gopxl/beep#Seq) that takes multiple streamers and returns a new streamer that plays them one by one. How is that useful for us now? Beep also provides another function called [`beep.Callback`](https://godoc.org/github.com/gopxl/beep#Callback) which takes a function and returns a streamer that doesn't really play anything, but instead calls the given function. Combining `beep.Seq` and `beep.Callback`, we can make our program wait until the song finishes:
+
+```go
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+		done <- true
+	})))
+
+	<-done
+```
+
+What have we done? We've told the speaker to play a sequence of two streamers: one is our song. Now, when the song finishes, the callback streamer starts playing. It doesn't play anything but instead sends a value over the `done` channel, causing our program to finish. Neat!
+
+> **Why not make the `speaker.Play` blocking instead?** The reason for this design choice is that making `speaker.Play` blocking would possibly result in goroutine leaks when dealing with various composite streamers. We'll learn about those in the next part.
+
+When we run the program now, it hangs until the song finishes playing, then quits. Exactly as we intended!
+
+## Dealing with different sample rates
+
+In the code above, we explicitly initialized the speaker to use the same sample rate as the song we loaded. But what if that's not the case? What if the speaker has a different sample rate than the audio file? This can happen particularly when we have multiple audio files, each with a different sample rate.
+
+**Let's see what happens!**
+
+Change the speaker initialization to this:
+
+```go
+	sr := format.SampleRate * 2
+	speaker.Init(sr, sr.N(time.Second/10))
+```
+
+We've doubled the sample rate.
+
+```
+$ go run hello-beep.go
+```
+
+Unsurprisingly, it plays at _double speed_! What can we do about it? Well, for one we can enjoy the fun! But we can also fix it with [`beep.Resample`](https://godoc.org/github.com/gopxl/beep#Resample):
+
+```go
+	resampled := beep.Resample(4, format.SampleRate, sr, streamer)
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
+		done <- true
+	})))
+
+	<-done
+```
+
+Now we're playing the `resampled` streamer instead of the original one. The `beep.Resample` function takes four arguments: quality index, the old sample rate, the new sample rate, and a streamer.
+
+It returns a new steamer, which plays the provided streamer in the new sample rate, assuming the original streamer was in the old sample rate. You can learn more about the quality index in the [documentation of the function](https://godoc.org/github.com/gopxl/beep#Resample), but simply put, if you put a larger quality index, you'll get better quality but more CPU consumption and vice versa. The value of `4` is a reasonable value for real-time, good-quality resampling.
+
+Now it plays in the original speed as before! So, that's how you deal with sample rates.
+
+You can also use `beep.Resample`, and especially it's variant [`beep.ResampleRatio`](https://godoc.org/github.com/gopxl/beep#ResampleRatio), to speed up and slow down audio. Try it with your favorite songs, it's really cool! The resampler has a very good quality too.
+
+Alright, that's all for this part, see you in the next one!
