@@ -1,0 +1,102 @@
+The root data source of all audio we've worked with so far was an audio file. The audio file had to be open the whole time its content was being played over the speaker. Obviously, this isn't always desirable. A good example is a gunshot sound effect in an action game. It's a small file, there's no reason to stream it directly from the disk. It's much better to have it loaded in memory. Furthermore, there may be gunshots all over the place. Decoding a file gives us only one streamer, which limits us to only one gunshot sound playing at any moment. We could open the file multiple times, but you can surely see that's a wrong way to do it.
+
+In this part, we'll learn how to load a sound to memory and then stream it from there.
+
+**We'll fire guns today!** Go ahead and download some gunshot sound (for example [from here](https://www.freesoundeffects.com/)). We'll start by loading and decoding the sound:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/gopxl/beep/mp3"
+)
+
+func main() {
+	f, err := os.Open("gunshot.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	// TODO
+}
+```
+
+Notice that we omitted the `defer streamer.Close()` line. That's because we actually will be closing the streamer before finishing the program.
+
+Now, to load audio into memory, we obviously need to store it somewhere. Beep has us covered with [`beep.Buffer`](https://godoc.org/github.com/gopxl/beep#Buffer). Don't confuse it with the speaker's buffer, whose size we set with `speaker.Init`. This buffer is very much like [`bytes.Buffer`](https://golang.org/pkg/bytes/#Buffer), except is a for storing samples, not bytes, and is simpler.
+
+First, we need to create a buffer (we don't really need to initialize the speaker before making the buffer):
+
+```go
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	buffer := beep.NewBuffer(format)
+```
+
+A buffer doesn't store samples as a slice of `[2]float64`s, because that would take up too much space. Instead, it encodes them as bytes. That's why it requires a format. Aside from sample rate (which is not used by buffer), [`beep.Format`](https://godoc.org/github.com/gopxl/beep#Format) specifies the number of channels and the number of bytes per sample. Those are used to determine how to encode the samples.
+
+We'll use the same format as the loaded audio file. That way we won't lose any quality.
+
+Now we need to put the contents of `streamer` inside `buffer`. How do we do that? We do that with [`buffer.Append`](https://godoc.org/github.com/gopxl/beep#Buffer.Append).
+
+```go
+	buffer := beep.NewBuffer(format)
+	buffer.Append(streamer)
+```
+
+Calling `Append` will _stream_ (not play out loud) the whole streamer and append all its content to the buffer. You could append multiple streamers to the same buffer if you wanted to. The call to `Append` is blocking - it doesn't return before all of the streamer's content is streamed. Of course, this streaming is done as quickly as possible, it'll take no time.
+
+At this point, `streamer` is drained and no longer needed. We can close it (that closes the source file as well):
+
+```go
+	buffer := beep.NewBuffer(format)
+	buffer.Append(streamer)
+	streamer.Close()
+```
+
+Good. Now that we've loaded the audio into memory, how do we play it? It's easy. Buffer has a special method called [`Streamer`](https://godoc.org/github.com/gopxl/beep#Buffer.Streamer). It takes two `int`s specifying the interval of the buffer's samples we'd like to stream and returns a [`beep.StreamSeeker`](https://godoc.org/github.com/gopxl/beep#StreamSeeker) that streams that interval.
+
+> **Note:** Because it returns a `beep.StreamSeeker`, we can loop it and rewind it as we like.
+
+Creating these streamers is very cheap and we can make as many of them as we like. That way, we can play many gunshots at the same time.
+
+So, let's do that! Let's make it so that entering a newline will fire a gunshot! That should be easy to do:
+
+```go
+	buffer := beep.NewBuffer(format)
+	buffer.Append(streamer)
+	streamer.Close()
+
+	for {
+		fmt.Print("Press [ENTER] to fire a gunshot! ")
+		fmt.Scanln()
+
+		shot := buffer.Streamer(0, buffer.Len())
+		speaker.Play(shot)
+	}
+```
+
+First, we've created a streamer with `buffer.Streamer`. We set the interval to all contents of the buffer. Then we sent the streamer to the speaker and that's it!
+
+> **If you feel like the latency is too big:** Try lowering the speaker buffer size from `time.Second/10` to `time.Second/30` or even `time.Second/100`.
+
+## When to buffer and when not to?
+
+Storing audio in memory is usually useful with sounds you want to play many times or multiple instances at the same time. Also, it's fine if the file isn't too large.
+
+On the other hand, streaming from the disk is good when you only want to play one instance at any moment or when the file is very big. Streaming directly from the disk minimizes memory usage and startup time.

@@ -1,0 +1,315 @@
+In this part, we'll learn how to compose new, more complex streamers out of simpler ones and how to control their playback.
+
+We'll start roughly where we left off in the previous part (excluding the resampling). If you don't have the code, here it is:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"time"
+
+	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/mp3"
+	"github.com/gopxl/beep/speaker"
+)
+
+func main() {
+	f, err := os.Open("Rockafeller Skank.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+		done <- true
+	})))
+
+	<-done
+}
+```
+
+Before we get into the hard-core composing and controlling, I'll teach you how you can observe a streamer, if it is a [`beep.StreamSeeker`](https://godoc.org/github.com/gopxl/beep#StreamSeeker). Namely, how you can check it's current playing position.
+
+A `beep.StreamSeeker` (which our `streamer` is) has three interesting methods: `Len() int`, `Position() int`, and `Seek(p int) error`. Note that all of those methods accept and return `int`s, not `time.Duration`. That's because a streamer itself doesn't know its sample rate, so all it can do is work with the numbers of samples. We know the sample rate, though. We can use the `format.SampleRate.D` method to convert those `int`s to `time.Duration`. This way, we can easily track the current position of our streamer:
+
+```go
+	done := make(chan bool)
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+		done <- true
+	})))
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-time.After(time.Second):
+			speaker.Lock()
+			fmt.Println(format.SampleRate.D(streamer.Position()).Round(time.Second))
+			speaker.Unlock()
+		}
+	}
+```
+
+We've replaced the simple `<-done` line with a more complex loop. It finishes when the playback finishes, but other than that, it prints the current streamer position every second.
+
+Let's analyze how we do that. First, we lock the speaker with `speaker.Lock()`. Why is that? The speaker is pulling data from the `streamer` in the background, concurrently with the rest of the program. Locking the speaker temporarily prevents it from accessing all streamers. That way, we can safely access active streamers without running into race conditions.
+
+After locking the speaker, we simply convert the `streamer.Position()` to a `time.Duration`, round it to seconds and print it out. Then we unlock the speaker so that the playback can continue.
+
+Let's run it!
+
+```
+$ go run tracking.go
+1s
+2s
+3s
+4s
+5s
+6s
+...
+```
+
+Works perfectly!
+
+Now onto some composing and controlling!
+
+## Loop
+
+Making new streamers from old ones, that's a common pattern in Beep. We've already seen it with [`beep.Resample`](https://godoc.org/github.com/gopxl/beep#Resample) and [`beep.Seq`](https://godoc.org/github.com/gopxl/beep#Seq). The new streamer functions by using the old streamer under the hood, somehow manipulating its samples.
+
+Another such streamer is [`beep.Loop`](https://godoc.org/github.com/gopxl/beep#Loop). It's a very simple one. Keep all the code as is, just add the `loop := ...` line and edit `speaker.Play` to play the `loop`:
+
+```go
+	loop := beep.Loop(3, streamer)
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(loop, beep.Callback(func() {
+		done <- true
+	})))
+```
+
+The `beep.Loop` function takes two arguments: the loop count, and a [`beep.StreamSeeker`](https://godoc.org/github.com/gopxl/beep#StreamSeeker). It can't take just a regular [`beep.Streamer`](https://godoc.org/github.com/gopxl/beep#Streamer) because it needs to rewind it for looping. Thankfully, the `streamer` is a `beep.StreamSeeker`.
+
+Now, run the program and wait until the audio finishes:
+
+```
+$ go run loop.go
+1s
+2s
+3s
+...
+3m33s
+1s
+2s
+...
+```
+
+When the song finishes, it starts over. It will play 3x in total. If we set the loop count to negative, e.g. `-1`, it will loop indefinitely.
+
+Maybe your song is too long and it takes too much to finish. No problemo! We can speed it up with [`beep.ResampleRatio`](https://godoc.org/github.com/gopxl/beep#ResampleRatio) (the first argument, `4`, is once again the quality index):
+
+```go
+	loop := beep.Loop(3, streamer)
+	fast := beep.ResampleRatio(4, 5, loop)
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(fast, beep.Callback(func() {
+		done <- true
+	})))
+```
+
+This speeds up the playback 5x, so the output will look like this:
+
+```
+$ go run loop.go
+6s
+11s
+16s
+21s
+...
+```
+
+Enjoy.
+
+**Notice one thing.** We've wrapped the original `streamer` in `beep.Loop`, then we wrapped that in `beep.ResampleRatio`, but we're still getting and printing the current position directly from the original `streamer`! That's right. It nicely demonstrates how `beep.Loop` and `beep.ResampleRatio` use the original streamer, each time taking only as much data as they need.
+
+## Ctrl
+
+Now we'll learn about another streamer. This time, we'll not only construct it, but we'll have dynamic control over it. Namely, we'll be able to pause and resume playback.
+
+First, let's get rid of all the unnecessary code and start clean:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"time"
+
+	"github.com/gopxl/beep/mp3"
+	"github.com/gopxl/beep/speaker"
+)
+
+func main() {
+	f, err := os.Open("Crescendolls.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	// TODO
+}
+```
+
+The goal is to enable the user to pause and resume the song by entering a newline. Pretty simple user interface. First, let's play the song on the loop. But, we'll additionally wrap it in a `beep.Ctrl`, which will enable us to pause the playback:
+
+```go
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer), Paused: false}
+	speaker.Play(ctrl)
+```
+
+This is a little different. All previous streamers were constructed using some constructor function, `beep.Seq`, `beep.Resample`, etc., but all we do here is directly make a struct. As you can see, the struct has two fields: the wrapped streamer, and a `Paused` flag. Here's how the `Ctrl` streamer works: when `Paused` is `false`, it streams from the wrapped streamer; when it's `true`, it streams silence.
+
+This time, we don't need to hang until the song finishes, because we'll instead be handling user input in an infinite loop. Let's do that:
+
+```go
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer), Paused: false}
+	speaker.Play(ctrl)
+
+	for {
+		fmt.Print("Press [ENTER] to pause/resume. ")
+		fmt.Scanln()
+
+		// TODO: pause/resume
+	}
+```
+
+That's the structure of the loop. Prompt the user, get the newline. All that's missing is actually pausing and resuming the playback.
+
+To do that, all we have to do is to switch the `Paused` flag in `ctrl`. Well, almost all. We also need to lock the speaker, because we are accessing an active streamer.
+
+```go
+	for {
+		fmt.Print("Press [ENTER] to pause/resume. ")
+		fmt.Scanln()
+
+		speaker.Lock()
+		ctrl.Paused = !ctrl.Paused
+		speaker.Unlock()
+	}
+```
+
+And that's it!
+
+## Volume
+
+We'll take a look at one more streamer, this time not from the `beep` package, but from the extra [`"github.com/gopxl/beep/effects"`](https://godoc.org/github.com/gopxl/beep/effects) package. The _effect_ we'll be dealing with is simple: changing volume.
+
+> **What's the deal with volume?** It sounds like an easy thing, but the tricky part is that human volume perception is roughly logarithmic. What it means is that two cars will not be 2x louder that one car, even though the intensity of the signal will double. In fact, that would be silly. Imagine a highway being 100x louder than a single car. Two cars will be, in our perception, louder than a single car only by a constant. Doubling the number of cars once more will, again, increase the volume by the same constant. You see what's going on: _to increase the perception of volume by a constant, we need to multiply the intensity of the signal_.
+
+The [`effects.Volume`](https://godoc.org/github.com/gopxl/beep/effects#Volume) streamer is a struct, just like `beep.Ctrl`, and looks like this:
+
+```go
+type Volume struct {
+	Streamer beep.Streamer
+	Base     float64
+	Volume   float64
+	Silent   bool
+}
+```
+
+Four fields here. The first one is obvious. The second one means this: _to increase the `Volume` by 1 means to multiply the signal (samples) by `Base`_. The `Volume` of 0 means unchanged volume, going into the positive numbers increases the volume, and going into the negative ones decreases it. For example, the `Volume` of -1 divides the signal by `Base`. In general, the signal will be multiplied by `math.Pow(Base, Volume)`. Since there's no `Volume` value that would completely silence the audio, an additional `Silent` flag is needed. Setting it to `true` will not pause the playback but will make it silent.
+
+> **What's a good `Base` value?** If you've heard about [Decibels](https://en.wikipedia.org/wiki/Decibel), you might be tempted to say that 10 is the right value. From my experience, that is not true at all. The most natural `Base` values I've found were somewhere around 2.
+
+Now, pausing is bad, right? It ruins the experience! So, we'll punish the user for pausing. Whenever the user pauses, we will increase the volume. Sounds fun? Let's do it!
+
+First, we will wrap the `ctrl` streamer in `effects.Volume` (we can't do it the other way around, because `effects.Volume` is not a `beep.StreamSeeker`):
+
+```go
+	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer), Paused: false}
+	volume := &effects.Volume{
+		Streamer: ctrl,
+		Base:     2,
+		Volume:   0,
+		Silent:   false,
+	}
+	speaker.Play(volume)
+```
+
+Once again, `Volume` of 0 means _unchanged_ volume, not muted.
+
+Now, let's increase the volume whenever the user pauses or resumes playback:
+
+```go
+	for {
+		fmt.Print("Press [ENTER] to pause/resume. ")
+		fmt.Scanln()
+
+		speaker.Lock()
+		ctrl.Paused = !ctrl.Paused
+		volume.Volume += 0.5 // <-- this right here
+		speaker.Unlock()
+	}
+```
+
+Done!
+
+But well, just increasing the volume might not be enough a punishment. Let's also speed up the playback, that'll show them! So, we'll additionally wrap with [`beep.ResampleRatio`](https://godoc.org/github.com/gopxl/beep#ResampleRatio):
+
+```go
+	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer), Paused: false}
+	volume := &effects.Volume{
+		Streamer: ctrl,
+		Base:     2,
+		Volume:   0,
+		Silent:   false,
+	}
+	speedy := beep.ResampleRatio(4, 1, volume)
+	speaker.Play(speedy)
+```
+
+We're starting with the resampling ratio of 1: no change in speed. But, we'll increase the ratio whenever the user pauses or resumes:
+
+```go
+	for {
+		fmt.Print("Press [ENTER] to pause/resume. ")
+		fmt.Scanln()
+
+		speaker.Lock()
+		ctrl.Paused = !ctrl.Paused
+		volume.Volume += 0.5
+		speedy.SetRatio(speedy.Ratio() + 0.1) // <-- right here
+		speaker.Unlock()
+	}
+```
+
+And that's it! This will guarantee that no one will use the pause/resume feature ever again!
+
+## Conclusion
+
+The main takeaway from this part is that while each streamer only does a specific thing (`beep.Ctrl` pauses, `beep.Volume` changes volume, etc.) you can easily combine them together and create your own, powerful _"DJ panels"_. This flexibility and modularity allows for easily extending Beep with new effects and being able to seamlessly integrate them into existing code without any restructuring. This is, in my opinion, the biggest benefit of Beep's design.
+
+Look into the documentation of both [`beep`](https://godoc.org/github.com/gopxl/beep) and [`effects`](https://godoc.org/github.com/gopxl/beep/effects) package to find other useful streamers.
