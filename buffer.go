@@ -31,7 +31,7 @@ type Format struct {
 	NumChannels int
 
 	// Precision is the number of bytes used to encode a single sample. Only values up to 6 work
-	// well, higher values loose precision due to floating point numbers.
+	// well, higher values lose precision due to floating point numbers.
 	Precision int
 }
 
