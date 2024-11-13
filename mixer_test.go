@@ -96,6 +96,17 @@ func TestMixer_PlaysSilenceWhenNoStreamersProduceSamples(t *testing.T) {
 	assert.Equal(t, make([][2]float64, 10), samples)
 }
 
+// Bug: https://github.com/gopxl/beep/issues/197#issuecomment-2468951277
+func TestMixer_CanClearDuringCallback(t *testing.T) {
+	m := beep.Mixer{}
+
+	m.Add(beep.Callback(func() {
+		m.Clear()
+	}))
+
+	testtools.CollectNum(10, &m)
+}
+
 func BenchmarkMixer_MultipleStreams(b *testing.B) {
 	s1, _ := testtools.RandomDataStreamer(b.N)
 	s2, _ := testtools.RandomDataStreamer(b.N)
