@@ -11,7 +11,7 @@ require (
 	github.com/orcaman/writerseeker v0.0.0-20200621085525-1d3f536ff85e
 	github.com/pkg/errors v0.9.1
 	github.com/samhocevar/go-meltysynth v0.0.0-20230403180939-aca4a036cb16
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
