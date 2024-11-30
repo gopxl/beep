@@ -65,11 +65,11 @@ func (f Format) DecodeUnsigned(p []byte) (sample [2]float64, n int) {
 func (f Format) encode(signed bool, p []byte, sample [2]float64) (n int) {
 	switch {
 	case f.NumChannels == 1:
-		x := util.Clamp((sample[0]+sample[1])/2, -1, 1)
+		x := util.ClampFloat64((sample[0]+sample[1])/2, -1, 1)
 		p = p[encodeFloat(signed, f.Precision, p, x):]
 	case f.NumChannels >= 2:
 		for c := range sample {
-			x := util.Clamp(sample[c], -1, 1)
+			x := util.ClampFloat64(sample[c], -1, 1)
 			p = p[encodeFloat(signed, f.Precision, p, x):]
 		}
 		for c := len(sample); c < f.NumChannels; c++ {
