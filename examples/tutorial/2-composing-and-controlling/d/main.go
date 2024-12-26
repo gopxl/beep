@@ -25,8 +25,12 @@ func main() {
 	defer streamer.Close()
 
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	loopStreamer, err := beep.Loop2(streamer)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer), Paused: false}
+	ctrl := &beep.Ctrl{Streamer: loopStreamer, Paused: false}
 	volume := &effects.Volume{
 		Streamer: ctrl,
 		Base:     2,

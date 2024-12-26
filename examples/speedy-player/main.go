@@ -29,11 +29,16 @@ type audioPanel struct {
 	volume     *effects.Volume
 }
 
-func newAudioPanel(sampleRate beep.SampleRate, streamer beep.StreamSeeker) *audioPanel {
-	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, streamer)}
+func newAudioPanel(sampleRate beep.SampleRate, streamer beep.StreamSeeker) (*audioPanel, error) {
+	loopStreamer, err := beep.Loop2(streamer)
+	if err != nil {
+		return nil, err
+	}
+
+	ctrl := &beep.Ctrl{Streamer: loopStreamer}
 	resampler := beep.ResampleRatio(4, 1, ctrl)
 	volume := &effects.Volume{Streamer: resampler, Base: 2}
-	return &audioPanel{sampleRate, streamer, ctrl, resampler, volume}
+	return &audioPanel{sampleRate, streamer, ctrl, resampler, volume}, nil
 }
 
 func (ap *audioPanel) play() {
@@ -172,7 +177,10 @@ func main() {
 	}
 	defer screen.Fini()
 
-	ap := newAudioPanel(format.SampleRate, streamer)
+	ap, err := newAudioPanel(format.SampleRate, streamer)
+	if err != nil {
+		report(err)
+	}
 
 	screen.Clear()
 	ap.draw(screen)
