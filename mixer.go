@@ -45,12 +45,12 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 	for len(samples) > 0 {
 		toStream := min(len(tmp), len(samples))
 
-		// clear the samples
+		// Clear the samples
 		clear(samples[:toStream])
 
 		snMax := 0
 		for si := 0; si < len(m.streamers); si++ {
-			// mix the stream
+			// Mix the stream
 			sn, sok := m.streamers[si].Stream(tmp[:toStream])
 			for i := range tmp[:sn] {
 				samples[i][0] += tmp[i][0]
@@ -61,12 +61,16 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 			}
 
 			if sn < toStream || !sok {
-				// remove drained streamer
-				last := len(m.streamers) - 1
-				m.streamers[si] = m.streamers[last]
-				m.streamers[last] = nil
-				m.streamers = m.streamers[:last]
-				si--
+				// Remove drained streamer.
+				// Check the length of m.streamers again in case the call to Stream()
+				// had a callback which clears the Mixer.
+				if len(m.streamers) > 0 {
+					last := len(m.streamers) - 1
+					m.streamers[si] = m.streamers[last]
+					m.streamers[last] = nil
+					m.streamers = m.streamers[:last]
+					si--
+				}
 
 				if m.stopWhenEmpty && len(m.streamers) == 0 {
 					return n + snMax, true
