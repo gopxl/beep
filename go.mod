@@ -3,7 +3,7 @@ module github.com/gopxl/beep/v2
 go 1.21
 
 require (
-	github.com/ebitengine/oto/v3 v3.3.2
+	github.com/ebitengine/oto/v3 v3.3.3
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/jfreymuth/oggvorbis v1.0.5
