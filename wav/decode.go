@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/pkg/errors"
@@ -139,14 +140,14 @@ func Decode(r io.Reader) (s beep.StreamSeekCloser, format beep.Format, err error
 	if string(d.h.DataMark[:]) != "data" {
 		return nil, beep.Format{}, errors.New("wav: missing data chunk marker")
 	}
-	if d.h.FormatType != 1 && d.h.FormatType != -2 {
+	if d.h.FormatType != 1 && d.h.FormatType != -2 && d.h.FormatType != 3 {
 		return nil, beep.Format{}, fmt.Errorf("wav: unsupported format type - %d", d.h.FormatType)
 	}
 	if d.h.NumChans <= 0 {
 		return nil, beep.Format{}, errors.New("wav: invalid number of channels (less than 1)")
 	}
-	if d.h.BitsPerSample != 8 && d.h.BitsPerSample != 16 && d.h.BitsPerSample != 24 {
-		return nil, beep.Format{}, errors.New("wav: unsupported number of bits per sample, 8 or 16 or 24 are supported")
+	if d.h.BitsPerSample != 8 && d.h.BitsPerSample != 16 && d.h.BitsPerSample != 24 && (d.h.FormatType != 3 || d.h.BitsPerSample != 32) {
+		return nil, beep.Format{}, errors.New("wav: unsupported number of bits per sample, 8 or 16 or 24 or 32 are supported")
 	}
 	format = beep.Format{
 		SampleRate:  beep.SampleRate(d.h.SampleRate),
@@ -249,6 +250,19 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
 			samples[j][0] = float64((int32(p[i+0])<<8)+(int32(p[i+1])<<16)+(int32(p[i+2])<<24)) / (1 << 8) / (1 << 23)
 			samples[j][1] = float64((int32(p[i+3])<<8)+(int32(p[i+4])<<16)+(int32(p[i+5])<<24)) / (1 << 8) / (1 << 23)
+		}
+	case d.h.FormatType == 3 && d.h.BitsPerSample == 32 && d.h.NumChans == 1:
+		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
+			val := math.Float32frombits(binary.LittleEndian.Uint32(p[i : i+4]))
+			samples[j][0] = float64(val)
+			samples[j][1] = float64(val)
+		}
+	case d.h.FormatType == 3 && d.h.BitsPerSample == 32 && d.h.NumChans >= 2:
+		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
+			left := math.Float32frombits(binary.LittleEndian.Uint32(p[i : i+4]))
+			right := math.Float32frombits(binary.LittleEndian.Uint32(p[i+4 : i+8]))
+			samples[j][0] = float64(left)
+			samples[j][1] = float64(right)
 		}
 	}
 	d.pos += int32(n)
