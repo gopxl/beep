@@ -17,7 +17,7 @@ go get -u github.com/gopxl/beep/v2
 
 Beep is built on top of its [Streamer](https://godoc.org/github.com/gopxl/beep#Streamer) interface, which is like [io.Reader](https://golang.org/pkg/io/#Reader), but for audio. It was one of the best design decisions I've ever made and it enabled all the rest of the features to naturally come together with not much code.
 
-- **Decode and play WAV, MP3, OGG, FLAC and MIDI.**
+- **Decode and play WAV, MP3, Ogg Vorbis, FLAC and MIDI.**
 - **Encode and save WAV.**
 - **Very simple API.** Limiting the support to stereo (two channel) audio made it possible to simplify the architecture and the API.
 - **Rich library of compositors and effects.** Loop, pause/resume, change volume, mix, sequence, change playback speed, and more.
