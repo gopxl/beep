@@ -108,6 +108,102 @@ func TestDecode(t *testing.T) {
 	}, d.h)
 }
 
+func TestDecode_Float32(t *testing.T) {
+	wav := []byte{
+		// RIFF header ---------------------------------------------------------
+		'R', 'I', 'F', 'F',
+		0x4C, 0x00, 0x00, 0x00, // file size = 76 bytes (without “RIFF” + size)
+		'W', 'A', 'V', 'E',
+
+		// fmt  chunk ----------------------------------------------------------
+		'f', 'm', 't', ' ',
+		0x10, 0x00, 0x00, 0x00, // chunk size = 16
+		0x03, 0x00, // wFormatTag = 3 (IEEE float)
+		0x02, 0x00, // nChannels  = 2 (stereo)
+		0x44, 0xAC, 0x00, 0x00, // nSamplesPerSec = 44 100
+		0x20, 0x62, 0x05, 0x00, // nAvgBytesPerSec = 352 800
+		0x08, 0x00, // nBlockAlign  = 8  (2 ch × 4 B)
+		0x20, 0x00, // wBitsPerSample = 32
+
+		// data chunk ----------------------------------------------------------
+		'd', 'a', 't', 'a',
+		0x28, 0x00, 0x00, 0x00, // data size = 40 bytes (5 frames)
+
+		// five frames of stereo 32‑bit float zeroes --------------------------
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+
+	r := bytes.NewReader(wav)
+
+	s, f, err := Decode(r)
+	if err != nil {
+		t.Fatalf("failed to decode float‑WAV: %v", err)
+	}
+
+	assert.Equal(t, beep.Format{
+		SampleRate:  44100,
+		NumChannels: 2,
+		Precision:   4, // 4 bytes per sample (32‑bit float)
+	}, f)
+
+	assert.NoError(t, s.Err())
+	assert.Equal(t, 5, s.Len())
+	assert.Equal(t, 0, s.Position())
+
+	//-----------------------------------------------------------------------
+	// Stream a few frames
+	//-----------------------------------------------------------------------
+	samples := make([][2]float64, 3)
+
+	n, ok := s.Stream(samples)
+	assert.Equal(t, 3, n)
+	assert.True(t, ok)
+	assert.Equal(t, 3, s.Position())
+
+	// all samples should be exact float‑zero
+	for i := 0; i < 3; i++ {
+		assert.Equal(t, 0.0, samples[i][0])
+		assert.Equal(t, 0.0, samples[i][1])
+	}
+
+	//-----------------------------------------------------------------------
+	// Drain the rest
+	//-----------------------------------------------------------------------
+	n, ok = s.Stream(samples)
+	assert.Equal(t, 2, n)
+	assert.True(t, ok)
+	assert.Equal(t, 5, s.Position())
+	assert.NoError(t, s.Err())
+
+	//-----------------------------------------------------------------------
+	// Decoder header verification
+	//-----------------------------------------------------------------------
+	d, ok := s.(*decoder)
+	if !ok {
+		t.Fatalf("streamer is not *decoder")
+	}
+
+	assert.Equal(t, header{
+		RiffMark:      [4]byte{'R', 'I', 'F', 'F'},
+		FileSize:      76,
+		WaveMark:      [4]byte{'W', 'A', 'V', 'E'},
+		FmtMark:       [4]byte{'f', 'm', 't', ' '},
+		FormatSize:    16,
+		FormatType:    3, // IEEE float
+		NumChans:      2,
+		SampleRate:    44100,
+		ByteRate:      352800,
+		BytesPerFrame: 8,
+		BitsPerSample: 32,
+		DataMark:      [4]byte{'d', 'a', 't', 'a'},
+		DataSize:      40,
+	}, d.h)
+}
+
 func TestDecoder_ReturnBehaviour(t *testing.T) {
 	f, err := os.Open(testtools.TestFilePath("valid_44100hz_22050_samples.wav"))
 	assert.NoError(t, err)
