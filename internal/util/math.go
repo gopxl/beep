@@ -1,7 +1,11 @@
 package util
 
-import "cmp"
-
-func Clamp[T cmp.Ordered](x, minV, maxV T) T {
-	return max(min(x, maxV), minV)
+func ClampFloat64(x, minV, maxV float64) float64 {
+	if x <= minV {
+		return minV
+	}
+	if x >= maxV {
+		return maxV
+	}
+	return x
 }

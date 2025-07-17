@@ -43,10 +43,17 @@ func (m *Mixer) Stream(samples [][2]float64) (n int, ok bool) {
 	var tmp [512][2]float64
 
 	for len(samples) > 0 {
-		toStream := min(len(tmp), len(samples))
+		//toStream := min(len(tmp), len(samples))
+		toStream := len(tmp)
+		if toStream > len(samples) {
+			toStream = len(samples)
+		}
 
 		// Clear the samples
-		clear(samples[:toStream])
+		//clear(samples[:toStream])
+		for i := range samples[:toStream] {
+			samples[i] = [2]float64{}
+		}
 
 		snMax := 0
 		for si := 0; si < len(m.streamers); si++ {

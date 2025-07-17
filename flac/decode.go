@@ -85,7 +85,11 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 			continue
 		}
 
-		toFill := min(samplesLeft, len(samples))
+		//toFill := min(samplesLeft, len(samples))
+		toFill := samplesLeft
+		if toFill > len(samples) {
+			toFill = len(samples)
+		}
 		d.decodeFrameRangeInto(d.frame, d.posInFrame, toFill, samples)
 		d.posInFrame += toFill
 		n += toFill

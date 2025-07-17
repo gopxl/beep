@@ -26,7 +26,11 @@ func (t *take) Stream(samples [][2]float64) (n int, ok bool) {
 	if t.remains <= 0 {
 		return 0, false
 	}
-	toStream := min(t.remains, len(samples))
+	//toStream := min(t.remains, len(samples))
+	toStream := t.remains
+	if len(samples) < toStream {
+		toStream = len(samples)
+	}
 	n, ok = t.s.Stream(samples[:toStream])
 	t.remains -= n
 	return n, ok
@@ -157,7 +161,10 @@ func Loop2(s StreamSeeker, opts ...LoopOption) (Streamer, error) {
 	if l.start >= l.end {
 		return nil, errors.New(fmt.Sprintf("invalid argument to Loop2; start position %d must be smaller than the end position %d", l.start, l.end))
 	}
-	l.end = min(l.end, n)
+	//l.end = min(l.end, n)
+	if n < l.end {
+		l.end = n
+	}
 
 	return l, nil
 }
@@ -190,7 +197,10 @@ func (l *loop2) Stream(samples [][2]float64) (n int, ok bool) {
 				continue
 			}
 			// Stream only up to the end of the loop.
-			toStream = min(samplesUntilEnd, toStream)
+			//toStream = min(samplesUntilEnd, toStream)
+			if samplesUntilEnd < toStream {
+				toStream = samplesUntilEnd
+			}
 		}
 
 		sn, sok := l.s.Stream(samples[:toStream])
