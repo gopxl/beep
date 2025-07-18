@@ -27,6 +27,13 @@ func Decode(rc io.ReadCloser) (s beep.StreamSeekCloser, format beep.Format, err 
 		if err != nil {
 			err = errors.Wrap(err, "mp3")
 		}
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = errors.Wrap(e, "mp3")
+			} else {
+				err = fmt.Errorf("mp3: panic: %v", r)
+			}
+		}
 	}()
 	d, err := gomp3.NewDecoder(rc)
 	if err != nil {
