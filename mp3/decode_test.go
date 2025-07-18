@@ -1,6 +1,8 @@
 package mp3_test
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -22,4 +24,14 @@ func TestDecoder_ReturnBehaviour(t *testing.T) {
 	// https://superuser.com/a/1393775
 
 	testtools.AssertStreamerHasCorrectReturnBehaviour(t, s, s.Len())
+}
+
+func TestMP3DecodePanicCase(t *testing.T) {
+	r := io.NopCloser(bytes.NewReader([]byte("\xff\xf2000000000000000001\xb3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")))
+
+	streamer, _, err := mp3.Decode(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer streamer.Close()
 }
