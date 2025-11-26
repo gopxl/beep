@@ -217,6 +217,10 @@ func (d *decoder) Stream(samples [][2]float64) (n int, ok bool) {
 	if err != nil && err != io.EOF {
 		d.err = err
 	}
+	if err == io.EOF {
+		d.pos = d.h.DataSize
+		return 0, false
+	}
 	switch {
 	case d.h.BitsPerSample == 8 && d.h.NumChans == 1:
 		for i, j := 0, 0; i <= n-bytesPerFrame; i, j = i+bytesPerFrame, j+1 {
