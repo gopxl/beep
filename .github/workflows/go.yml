@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         go:
-          - '1.21' # minimum supported version
+          - '1.24' # minimum supported version
           - 'stable'
     name: "build with Go ${{ matrix.go }}"
     steps:
